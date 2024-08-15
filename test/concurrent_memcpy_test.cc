@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#include <cstring>
 #include <memory>
 #include <string>
 #include <thread>
@@ -48,6 +49,170 @@ void testing_memcpy(const size_t size) {
   LOG(INFO) << "Passed memcpy test with size: " << size;
 }
 
+void test_concurrent_memcpy_n_basic() {
+    std::vector<const void*> src_buffers;
+    std::vector<void*> dst_buffers;
+    size_t buffer_size = 1 * 1024 * 1024;  // 1MB per buffer
+
+    char* src1 = new char[buffer_size];
+    char* dst1 = new char[buffer_size];
+
+    std::memset(src1, 'A', buffer_size);
+
+    src_buffers.push_back(src1);
+    dst_buffers.push_back(dst1);
+
+    size_t concurrency_level = 1;
+
+    vineyard::memory::concurrent_memcpy_n(dst_buffers, src_buffers, buffer_size,
+                                          concurrency_level);
+
+    assert(std::memcmp(dst1, src1, buffer_size) == 0);
+
+    delete[] src1;
+    delete[] dst1;
+
+    LOG(INFO) << "Passed concurrent_memcpy_n test: basic single buffer copy";
+}
+
+void test_concurrent_memcpy_n_multiple_buffers() {
+    std::vector<const void*> src_buffers;
+    std::vector<void*> dst_buffers;
+    size_t buffer_size = 2 * 1024 * 1024;  // 2MB per buffer
+
+    char* src1 = new char[buffer_size];
+    char* src2 = new char[buffer_size];
+    char* dst1 = new char[buffer_size];
+    char* dst2 = new char[buffer_size];
+
+    std::memset(src1, 'A', buffer_size);
+    std::memset(src2, 'B', buffer_size);
+
+    src_buffers.push_back(src1);
+    src_buffers.push_back(src2);
+    dst_buffers.push_back(dst1);
+    dst_buffers.push_back(dst2);
+
+    size_t concurrency_level = 2;
+
+    vineyard::memory::concurrent_memcpy_n(dst_buffers, src_buffers, buffer_size,
+                                          concurrency_level);
+
+    assert(std::memcmp(dst1, src1, buffer_size) == 0);
+    assert(std::memcmp(dst2, src2, buffer_size) == 0);
+
+    delete[] src1;
+    delete[] src2;
+    delete[] dst1;
+    delete[] dst2;
+
+    LOG(INFO) << "Passed concurrent_memcpy_n test: multiple buffer copy";
+}
+
+void test_concurrent_memcpy_n_with_small_buffers() {
+    std::vector<const void*> src_buffers;
+    std::vector<void*> dst_buffers;
+    size_t buffer_size = 1 * 1024 * 1024;  // 1MB per buffer
+
+    char* src1 = new char[buffer_size];
+    char* src2 = new char[buffer_size];
+    char* dst1 = new char[buffer_size];
+    char* dst2 = new char[buffer_size];
+
+    std::memset(src1, 'A', buffer_size);
+    std::memset(src2, 'B', buffer_size);
+
+    src_buffers.push_back(src1);
+    src_buffers.push_back(src2);
+    dst_buffers.push_back(dst1);
+    dst_buffers.push_back(dst2);
+
+    size_t concurrency_level = 2;
+
+    vineyard::memory::concurrent_memcpy_n(dst_buffers, src_buffers, buffer_size,
+                                          concurrency_level);
+
+    assert(std::memcmp(dst1, src1, buffer_size) == 0);
+    assert(std::memcmp(dst2, src2, buffer_size) == 0);
+
+    delete[] src1;
+    delete[] src2;
+    delete[] dst1;
+    delete[] dst2;
+
+    LOG(INFO) << "Passed concurrent_memcpy_n test: small buffers";
+}
+
+void test_concurrent_memcpy_n_large_buffer() {
+    std::vector<const void*> src_buffers;
+    std::vector<void*> dst_buffers;
+    size_t buffer_size = 8 * 1024 * 1024;  // 8MB per buffer
+
+    char* src1 = new char[buffer_size];
+    char* dst1 = new char[buffer_size];
+
+    std::memset(src1, 'A', buffer_size);
+
+    src_buffers.push_back(src1);
+    dst_buffers.push_back(dst1);
+
+    size_t concurrency_level = 2;  // Expect splitting across threads
+
+    vineyard::memory::concurrent_memcpy_n(dst_buffers, src_buffers, buffer_size,
+                                          concurrency_level);
+
+    assert(std::memcmp(dst1, src1, buffer_size) == 0);
+
+    delete[] src1;
+    delete[] dst1;
+
+    LOG(INFO)
+        << "Passed concurrent_memcpy_n test: large buffer copy with splitting";
+}
+
+void test_concurrent_memcpy_n_with_uneven_distribution() {
+    std::vector<const void*> src_buffers;
+    std::vector<void*> dst_buffers;
+    size_t buffer_size = 3 * 1024 * 1024;  // 3MB per buffer
+
+    char* src1 = new char[buffer_size];
+    char* src2 = new char[buffer_size];
+    char* src3 = new char[buffer_size];
+    char* dst1 = new char[buffer_size];
+    char* dst2 = new char[buffer_size];
+    char* dst3 = new char[buffer_size];
+
+    std::memset(src1, 'A', buffer_size);
+    std::memset(src2, 'B', buffer_size);
+    std::memset(src3, 'C', buffer_size);
+
+    src_buffers.push_back(src1);
+    src_buffers.push_back(src2);
+    src_buffers.push_back(src3);
+    dst_buffers.push_back(dst1);
+    dst_buffers.push_back(dst2);
+    dst_buffers.push_back(dst3);
+
+    size_t concurrency_level = 2;  // Results in uneven distribution across threads
+
+    vineyard::memory::concurrent_memcpy_n(dst_buffers, src_buffers, buffer_size,
+                                          concurrency_level);
+
+    assert(std::memcmp(dst1, src1, buffer_size) == 0);
+    assert(std::memcmp(dst2, src2, buffer_size) == 0);
+    assert(std::memcmp(dst3, src3, buffer_size) == 0);
+
+    delete[] src1;
+    delete[] src2;
+    delete[] src3;
+    delete[] dst1;
+    delete[] dst2;
+    delete[] dst3;
+
+    LOG(INFO) << "Passed concurrent_memcpy_n test: uneven distribution with "
+                 "larger buffers";
+}
+
 int main(int argc, char** argv) {
   if (argc < 1) {
     printf("usage ./concurrent_memcpy_test");
@@ -58,6 +223,12 @@ int main(int argc, char** argv) {
        sz += 1024 * 1024 * 256) {
     testing_memcpy(sz);
   }
+
+  test_concurrent_memcpy_n_basic();
+  test_concurrent_memcpy_n_multiple_buffers();
+  test_concurrent_memcpy_n_with_small_buffers();
+  test_concurrent_memcpy_n_large_buffer();
+  test_concurrent_memcpy_n_with_uneven_distribution();
 
   LOG(INFO) << "Passed concurrent memcpy tests...";
 
