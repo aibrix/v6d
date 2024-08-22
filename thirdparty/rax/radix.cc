@@ -1051,6 +1051,14 @@ int raxTryInsert(rax *rax, const std::vector<int>& token_list, void *data, void 
     return raxGenericInsert(rax,token_list,data,old,0,&dataNode);
 }
 
+/* Non overwriting insert function: this if an element with the same key
+ * exists, the value is not updated and the function returns 0.
+ * This is a just a wrapper for raxGenericInsert(). */
+int raxTryInsertAndReturnDataNode(rax* rax, const std::vector<int>& token_list,
+                                  void* data, void** node, void** old) {
+  return raxGenericInsert(rax, token_list, data, old, 0, node);
+}
+
 /*
 Overwriting insert. Return the raxNode that contains the key.
 */
