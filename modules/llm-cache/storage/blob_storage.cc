@@ -362,29 +362,7 @@ Status BlobStorage::Query(
     const std::vector<int>& tokenList,
     std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
     size_t& matched) {
-  std::unique_lock<std::mutex> lock(cacheAccessMutex, std::defer_lock);
-  if (!lock.try_lock()) {
-    return Status::Invalid("Query cache failed: can not gain the cache lock.");
-  }
-  if (isClosed) {
-    return Status::Invalid("The memory storage is closed.");
-  }
-
-  // support partial match of the token list
-  // copy the token list and query the cache one token by one token
-  matched = 0;
-  std::vector<int> tokenListPrefix;
-  for (size_t i = 0; i < tokenList.size() && i < kvCacheList.size(); i++) {
-    Status result =
-        QueryInternal(tokenListPrefix, tokenList[i], kvCacheList[i]);
-    if (!result.ok()) {
-      return Status::OK();
-    }
-    matched += 1;
-    tokenListPrefix.push_back(tokenList[i]);
-  }
-
-  return Status::OK();
+  return Query({}, tokenList, kvCacheList, matched);
 }
 
 /**
@@ -445,7 +423,26 @@ Status BlobStorage::Query(
     const std::vector<int>& prefix, const std::vector<int>& tokenList,
     std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
     size_t& matched) {
-  return Status::NotImplemented();
+  RETURN_ON_ASSERT(tokenList.size() == kvCacheList.size(),
+                   "tokenList size must matches kvCacheList size");
+  std::unique_lock<std::mutex> lock(cacheAccessMutex, std::defer_lock);
+  if (!lock.try_lock()) {
+    return Status::Invalid("Query cache failed: can not gain the cache lock.");
+  }
+  if (isClosed) {
+    return Status::Invalid("The memory storage is closed.");
+  }
+  matched = 0;
+  std::vector<int> tokenListPrefix(prefix.begin(), prefix.end());
+  for (size_t i = 0; i < tokenList.size(); i++) {
+    auto status = QueryInternal(tokenListPrefix, tokenList[i], kvCacheList[i]);
+    if (!status.ok()) {
+      break;
+    }
+    matched += 1;
+    tokenListPrefix.push_back(tokenList[i]);
+  }
+  return Status::OK();
 }
 
 BlobStorage::~BlobStorage() {

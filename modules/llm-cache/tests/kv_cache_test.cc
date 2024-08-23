@@ -179,6 +179,39 @@ void inference(std::shared_ptr<KVCacheManager>& kv_cache_manager,
   }
 }
 
+void inference(std::shared_ptr<KVCacheManager>& kv_cache_manager,
+               std::vector<int> prefix, std::vector<int> tokens,
+               bool block = false) {
+  std::vector<int> inference_tokens;
+  std::vector<std::pair<LLMKV, LLMKV>> kv_state;
+  std::vector<std::pair<LLMKV, LLMKV>> kv_state_to_query;
+  std::vector<std::vector<std::pair<LLMKV, LLMKV>>> kv_state_to_query_list;
+
+  // Get tokens with batched query interface
+  inference_tokens = std::vector(prefix.begin(), prefix.end());
+  kv_state.clear();
+  LOG(INFO) << "before query";
+
+  LOG(INFO) << "kv_state_to_query size: " << kv_state_to_query.size()
+            << ", layer" << layer << ", tensorNBytes" << tensorNBytes;
+  for (int i = 0; i < tokens.size(); i++) {
+      kv_state_to_query.clear();
+      for (int currentLayer = 0; currentLayer < layer; currentLayer++) {
+        kv_state_to_query.emplace_back(LLMKV{nullptr, 0}, LLMKV{nullptr, 0});
+      }
+      kv_state_to_query_list.emplace_back(kv_state_to_query);
+  }
+  size_t matched = 0;
+  Status result = kv_cache_manager->Query(inference_tokens, tokens,
+                                          kv_state_to_query_list, matched);
+  LOG(INFO) << "Find " << matched << " matched tokens from token lists.";
+  for (size_t i = 0; i < matched; i++) {
+    print_current_tokens(inference_tokens, tokens[i]);
+    inference_tokens.emplace_back(tokens[i]);
+    check_kv_state(kv_state_to_query_list[i], tokens[i]);
+  }
+}
+
 void threadFunc(std::string socket) {
   Client client;
   VINEYARD_CHECK_OK(client.Connect(socket));
@@ -192,6 +225,17 @@ void threadFunc(std::string socket) {
 
   for (size_t i = 0; i < tokens_list.size(); i++) {
     inference(manager, tokens_list[i]);
+  }
+
+  sleep(5);
+
+  for (size_t i = 0; i < tokens_list.size(); i++) {
+      size_t half_index = tokens_list[i].size() / 2;
+      std::vector<int> prefix(tokens_list[i].begin(),
+                              tokens_list[i].begin() + half_index);
+      std::vector<int> tokens_list_rest(tokens_list[i].begin() + half_index,
+                                        tokens_list[i].end());
+      inference(manager, prefix, tokens_list_rest);
   }
 
   LOG(INFO) << "inference end";
