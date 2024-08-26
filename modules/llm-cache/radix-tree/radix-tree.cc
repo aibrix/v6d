@@ -92,19 +92,26 @@ std::shared_ptr<NodeData> RadixTree::InsertInternal(
   }
 
   // insert the token vector to the radix tree
-  DataWrapper* dummyData = new DataWrapper();
+  DataWrapper* currData = new DataWrapper();
   DataWrapper* oldData;
   raxNode* dataNode = NULL;
-  int retval = raxInsertAndReturnDataNode(this->tree, tokens, dummyData,
-                                          reinterpret_cast<void**>(&dataNode),
-                                          reinterpret_cast<void**>(&oldData));
+  int retval = raxTryInsertAndReturnDataNode(
+      this->tree, tokens, currData, reinterpret_cast<void**>(&dataNode),
+      reinterpret_cast<void**>(&oldData));
+
   if (dataNode == NULL) {
+    delete currData;
     return NULL;
   }
-  if (retval == 1) {
+
+  if (retval == 1) /* new node */ {
     VLOG(100) << "node count++:" << this->nodeCount;
     nodeCount++;
+  } else /* existing node */ {
+    delete currData;
+    currData = oldData;
   }
+
   if (VLOG_IS_ON(100)) {
     VLOG(100) << raxShow(this->tree);
   }
@@ -134,10 +141,10 @@ std::shared_ptr<NodeData> RadixTree::InsertInternal(
   }
 
   if (subTreeNode == nullptr) {
-    return std::make_shared<NodeData>(dummyData, nullptr);
+    return std::make_shared<NodeData>(currData, nullptr);
   }
   return std::make_shared<NodeData>(
-      dummyData, reinterpret_cast<DataWrapper*>(subTreeNode->custom_data));
+      currData, reinterpret_cast<DataWrapper*>(subTreeNode->custom_data));
 }
 
 void RadixTree::DeleteInternal(const std::vector<int>& tokens,

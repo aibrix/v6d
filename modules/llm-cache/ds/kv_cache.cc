@@ -123,6 +123,10 @@ Status KVCacheBuilder::Split(
                   "Not enough memory for new block builder.");
 
   for (size_t i = 0; i < nodeDataList.size(); i++) {
+    if (nodeDataList[i] == nullptr) {
+      continue;
+    }
+
     OffsetData* data =
         reinterpret_cast<OffsetData*>(nodeDataList[i]->nodeData->data);
     if (data == nullptr)
@@ -169,20 +173,29 @@ Status KVCacheBuilder::Update(
     Delete(evictedNodeData);
   }
 
-  if (kvCacheBlockBuilder->IsFull()) {
-    /**
-     * If the kv-state cache of the tree is full, trigger split. Delete the
-     * empty node from the radix tree and split the tree. Then, kv-state cache
-     * split according to the new tree.
-     */
-    VLOG(100) << "trigger splits";
-    std::shared_ptr<NodeData> evictedNodeData = nullptr;
-    this->rootTree->Delete(tokenListCopy, evictedNodeData);
+  if (nodeData->nodeData->data) {
+    // This is an existing token, there is no need to update the kv-state cache.
+    return Status::OK();
+  }
 
+  KVCacheBlockBuilder* targetKVCacheBlockBuilder = kvCacheBlockBuilder;
+  if (kvCacheBlockBuilder->IsFull()) {
+    VLOG(100) << "trigger splits";
     std::shared_ptr<NodeData> subTreeHeader;
     std::vector<std::shared_ptr<NodeData>> nodeDataList =
         rootTree->Split(tokenListCopy, subTreeHeader);
     RETURN_ON_ASSERT(nodeDataList.size() != 0, "Split llm cache failed.");
+
+    bool need_migrate = false;
+    for (size_t i = 0; i < nodeDataList.size(); i++) {
+      if (nodeDataList[i]->nodeData == nodeData->nodeData) {
+        // current node needs to be migrated into the new block
+        nodeDataList[i] = nullptr;
+        need_migrate = true;
+        break;
+      }
+    }
+
     KVCacheBlockBuilder* newKVCacheBlockBuilder;
     Status status =
         Split(kvCacheBlockBuilder, nodeDataList, newKVCacheBlockBuilder);
@@ -196,20 +209,22 @@ Status KVCacheBuilder::Update(
     subTreeHeader->treeData->data = newTreeData;
     subTreeHeader->treeData->dataLength = sizeof(TreeData);
     rootTree->SetSubtreeData(newTreeData);
+
+    if (need_migrate) {
+      // Migrate current node into the new block
+      nodeData->treeData = reinterpret_cast<DataWrapper*>(newTreeData);
+      targetKVCacheBlockBuilder = newKVCacheBlockBuilder;
+    }
     VLOG(100) << "block split success";
-
-    // kv_cache_builder->UnLock();
-    status = Update(tokenList, nextToken, kvState);
-    RETURN_ON_ERROR(status);
-  } else {
-    // Update the kv-state cache.
-    OffsetData* data = new OffsetData();
-    RETURN_ON_ASSERT(data != nullptr, "Not enough memory for new offset data.");
-
-    RETURN_ON_ERROR(kvCacheBlockBuilder->Update(kvState, data));
-    nodeData->nodeData->data = data;
-    nodeData->nodeData->dataLength = sizeof(OffsetData);
   }
+
+  // Update the kv-state cache.
+  OffsetData* data = new OffsetData();
+  RETURN_ON_ASSERT(data != nullptr, "Not enough memory for new offset data.");
+
+  RETURN_ON_ERROR(targetKVCacheBlockBuilder->Update(kvState, data));
+  nodeData->nodeData->data = data;
+  nodeData->nodeData->dataLength = sizeof(OffsetData);
 
   VLOG(100) << "builder:" << kvCacheBlockBuilder
             << " bitmap:" << kvCacheBlockBuilder->GetBitmapStr();

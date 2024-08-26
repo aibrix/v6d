@@ -221,6 +221,8 @@ rax* raxNew(void);
 int raxInsert(rax* rax, const std::vector<int>& token_list, void* data, void** old,
               bool set_timestamp = true);
 int raxTryInsert(rax* rax, const std::vector<int>& token_list, void* data, void** old);
+int raxTryInsertAndReturnDataNode(rax* rax, const std::vector<int>& token_list,
+                                  void* data, void** node, void** old);
 int raxInsertAndReturnDataNode(rax* rax, const std::vector<int>& token_list, void* data,
                                void** node, void** old);
 int raxRemove(rax* rax, const std::vector<int>& token_list, void** old,
