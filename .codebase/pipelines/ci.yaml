@@ -1,0 +1,72 @@
+# Codebase CI doc: https://bytedance.feishu.cn/wiki/wikcnU4REAouZ7tlLb6n22bw4de
+# Basic Action Cache doc: https://bytedance.feishu.cn/wiki/wikcnt48A366W76acBoaCBREPed
+
+name: VINEYARD CI
+trigger:
+  change:
+    types:
+      - create
+      - push
+  manual:
+jobs:
+  build_vineyard:
+    name: Build vineyard with gcc & Run UT
+    image: hub.byted.org/compile/vineyard_test:4e6e513a48320eae84238af2d93931b3
+    steps:
+      - id: git_shallow_clone
+        uses: actions/checkout
+        inputs:
+          depth: 1
+      - id: get_home_dir
+        commands:
+          - echo "::set-output name=home::$(echo ~)"
+      - id: prepare_ccache
+        uses: actions/cache
+        inputs:
+          key: ccache
+          paths:
+            - ${{Steps.get_home_dir.Outputs.home}}/.ccache
+            - historian.db
+          restore_keys:
+            - ccache
+      - id: code_historian
+        uses: actions/historian
+        inputs:
+          db-file: historian.db
+      - id: build
+        name: build and install dependencies
+        commands:
+          - git submodule update --init
+          - mkdir build && cd build
+          - cmake ..
+          - make -j8
+          - make vineyard_tests -j8
+          - make vineyard_client_python -j8
+          - cd .. && python3 setup.py bdist_wheel
+          - pip3 install -r requirements-setup.txt -r requirements.txt -r requirements-dev.txt
+      - id: cpp_tests
+        name: Run cpp tests
+        commands:
+          - rm -rf default.etcd
+          - rm -rf /dev/shm/etcd*
+          - python3 test/runner.py --with-cpp
+      - id: python_tests
+        name: Run python tests
+        commands:
+          - rm -rf default.etcd
+          - rm -rf /dev/shm/etcd*
+          - python3 test/runner.py --with-python
+      - id: llm_tests
+        name: Run llm tests
+        commands:
+          - rm -rf default.etcd
+          - rm -rf /dev/shm/etcd*
+          - python3 test/runner.py --with-llm
+      - id: llm_python_tests
+        name: Run llm python tests
+        commands:
+          - rm -rf default.etcd
+          - rm -rf /dev/shm/etcd*
+          - mkdir -p /tmp/vineyard/llm_cache
+          - python3 test/runner.py --with-llm-python
+        

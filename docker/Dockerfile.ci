@@ -1,0 +1,55 @@
+FROM hub.byted.org/base/debian.bullseye.tce_service:ab79145ef2fa96ba484504079e6d2b43
+
+RUN apt-get update
+RUN apt-get install -y ca-certificates \
+                   cmake \
+                   doxygen \
+                   libboost-all-dev \
+                   libcurl4-openssl-dev \
+                   libgflags-dev \
+                   libgoogle-glog-dev \
+                   libgrpc-dev \
+                   libgrpc++-dev \
+                   libmpich-dev \
+                   libprotobuf-dev \
+                   libssl-dev \
+                   libunwind-dev \
+                   libz-dev \
+                   protobuf-compiler-grpc \
+                   python3-pip \
+                   wget \
+                   ninja-build \
+                   lsb-release \
+                   git
+ 
+RUN rm -rf /lib/x86_64-linux-gnu/libprotoc.a \
+            /lib/x86_64-linux-gnu/libprotobuf.a \
+            /lib/x86_64-linux-gnu/libprotobuf-lite.a \
+            /lib/x86_64-linux-gnu/libprotobuf.so.23 \
+            /lib/x86_64-linux-gnu/libprotobuf.so.23.0.4
+
+RUN ldconfig
+RUN pip3 install libclang
+# install arrow
+RUN wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
+    -O /tmp/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
+	 && apt install -y -V /tmp/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
+	 && apt update -y \
+	 && apt install -y libarrow-dev
+     
+# install etcd
+ARG ETCD_VER="v3.4.33"
+ARG GOOGLE_URL="https://storage.googleapis.com/etcd"
+ARG GITHUB_URL="https://github.com/etcd-io/etcd/releases/download"
+ARG DOWNLOAD_URL=${GOOGLE_URL}
+RUN rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz \
+	&& rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test \
+
+	&& curl -L ${DOWNLOAD_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz \
+	&& tar xzvf /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1 \
+	&& rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz \
+	&& /tmp/etcd-download-test/etcd --version\
+	&& /tmp/etcd-download-test/etcdctl version
+
+# PATH setup, enforced by icm check
+ENV PATH=/opt/common_tools:/opt/tiger/typhoon-blade:usr/local/tao/agent/modules/bvc/bin:/opt/tiger/ss_bin:$PATH
