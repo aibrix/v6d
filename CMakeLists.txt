@@ -71,6 +71,9 @@ option(BUILD_VINEYARD_BENCHMARKS_ALL "Include make targets for vineyard benchmar
 option(BUILD_VINEYARD_COVERAGE "Build vineyard with coverage information, requires build with Debug" OFF)
 option(BUILD_VINEYARD_PROFILING "Build vineyard with profiling information" OFF)
 
+# libfabric options
+option(BUILD_LIBFABRIC_WITH_CUDA "Build libfabric with CUDA support" OFF)
+
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
 include(ExternalProject)
@@ -675,54 +678,43 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
     set(FABRIC_MAKEFILE "${CMAKE_SOURCE_DIR}/thirdparty/libfabric/Makefile")
 
+    if(NOT BUILD_LIBFABRIC_WITH_CUDA)
+        set(LIBFABRIC_CUDA_OPT "--with-cuda=\"no\"")
+        message(WARNING "Disable CUDA for libfabric: '${LIBFABRIC_CUDA_OPT}'")
+    endif()
+
     if(IBVERBS_LIB AND RDMACM_LIB)
         set(RDMA_LIBS ${RDMACM_LIB} ${IBVERBS_LIB} ${RT_LIB})
-        
-        add_custom_command(
-            OUTPUT ${FABRIC_MAKEFILE}
-            COMMAND ./autogen.sh > /dev/null
-            COMMAND ./configure --disable-usnic
-                                --disable-psm3
-                                --disable-opx
-                                --disable-dmabuf_peer_mem
-                                --disable-hook_hmem
-                                --disable-hook_debug
-                                --disable-trace
-                                --disable-rxm
-                                --disable-psm2
-                                --disable-xpmem
-                                --disable-shm
-                                --disable-rxd
-                                --disable-perf
-                                --disable-efa
-                                --disable-mrail
-                                --enable-verbs > /dev/null
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/thirdparty/libfabric
-        )
+        set(LIBFABRIC_RDMA_OPT "--enable-verbs")
     else()
         set(RDMA_LIBS ${RT_LIB})
-        add_custom_command(
-            OUTPUT ${FABRIC_MAKEFILE}
-            COMMAND ./autogen.sh > /dev/null
-            COMMAND ./configure --disable-usnic
-                                --disable-psm3
-                                --disable-opx
-                                --disable-dmabuf_peer_mem
-                                --disable-hook_hmem
-                                --disable-hook_debug
-                                --disable-trace
-                                --disable-rxm
-                                --disable-psm2
-                                --disable-xpmem
-                                --disable-shm
-                                --disable-rxd
-                                --disable-perf
-                                --disable-efa
-                                --disable-mrail
-                                --disable-verbs > /dev/null
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/thirdparty/libfabric
-        )
+        set(LIBFABRIC_RDMA_OPT "--disable-verbs")
+        message(WARNING "Disable RDMA for libfabric: '${LIBFABRIC_RDMA_OPT}'")
     endif()
+
+    add_custom_command(
+        OUTPUT ${FABRIC_MAKEFILE}
+        COMMAND ./autogen.sh > /dev/null
+        COMMAND ./configure --disable-usnic
+                            --disable-psm3
+                            --disable-opx
+                            --disable-dmabuf_peer_mem
+                            --disable-hook_hmem
+                            --disable-hook_debug
+                            --disable-trace
+                            --disable-rxm
+                            --disable-psm2
+                            --disable-xpmem
+                            --disable-shm
+                            --disable-rxd
+                            --disable-perf
+                            --disable-efa
+                            --disable-mrail
+                            ${LIBFABRIC_RDMA_OPT}
+                            ${LIBFABRIC_CUDA_OPT} > /dev/null
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/thirdparty/libfabric
+    )
+
     add_custom_target(
         fabric_configure
         DEPENDS ${FABRIC_MAKEFILE}
