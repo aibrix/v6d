@@ -24,11 +24,13 @@ limitations under the License.
 namespace vineyard {
 
 BlobStorage::BlobStorage(Client& client, std::shared_ptr<KVCacheBuilder>& cache,
-                         int syncInterval, std::string& llmCacheSyncLock,
+                         int syncInterval, int cacheAccessLockTimeoutMs,
+                         std::string& llmCacheSyncLock,
                          std::string& llmCacheObjectName,
                          std::string& llmRefcntObjectName)
     : client(client) {
   this->syncInterval = syncInterval;
+  this->cacheAccessLockTimeoutMs = cacheAccessLockTimeoutMs,
   this->kvCacheBuilder = cache;
   this->llmCacheSyncLock = llmCacheSyncLock;
   this->llmCacheObjectName = llmCacheObjectName;
@@ -39,6 +41,7 @@ BlobStorage::BlobStorage(Client& client, std::shared_ptr<KVCacheBuilder>& cache,
 Status BlobStorage::Make(Client& client, std::shared_ptr<BlobStorage>& storage,
                          int tensorNBytes, int cacheCapacity, int layer,
                          int blockSize, int syncInterval,
+                         int cacheAccessLockTimeoutMs,
                          std::string llmCacheSyncLock,
                          std::string llmCacheObjectName,
                          std::string llmRefcntObjectName) {
@@ -88,9 +91,9 @@ Status BlobStorage::Make(Client& client, std::shared_ptr<BlobStorage>& storage,
 
   // TBD
   // use lease to prevent the deadlock if the client is down
-  storage = std::make_shared<BlobStorage>(client, kvCacheBuilder, syncInterval,
-                                          llmCacheSyncLock, llmCacheObjectName,
-                                          llmRefcntObjectName);
+  storage = std::make_shared<BlobStorage>(
+      client, kvCacheBuilder, syncInterval, cacheAccessLockTimeoutMs,
+      llmCacheSyncLock, llmCacheObjectName, llmRefcntObjectName);
   VINEYARD_CHECK_OK(storage->SetRefcntMap(blockIDSetToDelete, blockIDSetToAdd));
   // release the lock
   ReleaseServerLock(client, actualKey);
@@ -147,8 +150,9 @@ Status BlobStorage::QueryInternal(
 Status BlobStorage::Update(
     const std::vector<int>& tokenList, int nextToken,
     const std::vector<std::pair<LLMKV, LLMKV>>& kvState) {
-  std::unique_lock<std::mutex> lock(cacheAccessMutex, std::defer_lock);
-  if (!lock.try_lock()) {
+  std::unique_lock<std::timed_mutex> lock(cacheAccessMutex, std::defer_lock);
+  if (!lock.try_lock_for(
+          std::chrono::milliseconds(this->cacheAccessLockTimeoutMs))) {
     // If failed to gain the lock, return OK and wait for next time
     return Status::OK();
   }
@@ -214,8 +218,9 @@ Status BlobStorage::Update(
     const std::vector<int>& tokenList,
     const std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
     size_t& updated) {
-  std::unique_lock<std::mutex> lock(cacheAccessMutex, std::defer_lock);
-  if (!lock.try_lock()) {
+  std::unique_lock<std::timed_mutex> lock(cacheAccessMutex, std::defer_lock);
+  if (!lock.try_lock_for(
+          std::chrono::milliseconds(this->cacheAccessLockTimeoutMs))) {
     return Status::OK();
   }
   if (isClosed) {
@@ -285,8 +290,9 @@ Status BlobStorage::Update(
     const std::vector<int>& prefix, const std::vector<int>& tokenList,
     const std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
     size_t& updated) {
-  std::unique_lock<std::mutex> lock(cacheAccessMutex, std::defer_lock);
-  if (!lock.try_lock()) {
+  std::unique_lock<std::timed_mutex> lock(cacheAccessMutex, std::defer_lock);
+  if (!lock.try_lock_for(
+          std::chrono::milliseconds(this->cacheAccessLockTimeoutMs))) {
     return Status::OK();
   }
   if (isClosed) {
@@ -409,8 +415,9 @@ Status BlobStorage::Query(
  */
 Status BlobStorage::Query(const std::vector<int>& prefix, int token,
                           std::vector<std::pair<LLMKV, LLMKV>>& kvState) {
-  std::unique_lock<std::mutex> lock(cacheAccessMutex, std::defer_lock);
-  if (!lock.try_lock()) {
+  std::unique_lock<std::timed_mutex> lock(cacheAccessMutex, std::defer_lock);
+  if (!lock.try_lock_for(
+          std::chrono::milliseconds(this->cacheAccessLockTimeoutMs))) {
     return Status::Invalid("Query cache failed: can not gain the cache lock.");
   }
   if (isClosed) {
@@ -423,8 +430,9 @@ Status BlobStorage::Query(
     const std::vector<int>& prefix, const std::vector<int>& tokenList,
     std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
     size_t& matched) {
-  std::unique_lock<std::mutex> lock(cacheAccessMutex, std::defer_lock);
-  if (!lock.try_lock()) {
+  std::unique_lock<std::timed_mutex> lock(cacheAccessMutex, std::defer_lock);
+  if (!lock.try_lock_for(
+          std::chrono::milliseconds(this->cacheAccessLockTimeoutMs))) {
     return Status::Invalid("Query cache failed: can not gain the cache lock.");
   }
   if (isClosed) {
@@ -581,7 +589,7 @@ void BlobStorage::SyncThreadFunc(BlobStorage* storage) {
       if (storage->exitFlag) {
         break;
       }
-      std::lock_guard<std::mutex> lock(storage->cacheAccessMutex);
+      std::lock_guard<std::timed_mutex> lock(storage->cacheAccessMutex);
       std::string actualKey;
 
       AcquireServerLock(storage->client, storage->llmCacheSyncLock, actualKey);
@@ -703,7 +711,7 @@ void BlobStorage::CloseCache() {
   StopSync();
 
   LOG(INFO) << "Clear block set and recycle blob.";
-  std::lock_guard<std::mutex> cacheLock(cacheAccessMutex);
+  std::lock_guard<std::timed_mutex> cacheLock(cacheAccessMutex);
   this->kvCacheBuilder->Close();
   this->isClosed = true;
   RefreshRefcnt();

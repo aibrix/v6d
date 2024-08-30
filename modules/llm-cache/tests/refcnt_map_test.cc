@@ -247,7 +247,7 @@ void threadFunc(std::string socket, int threadId) {
   std::shared_ptr<BlobStorage> blob_storage;
   VINEYARD_CHECK_OK(BlobStorage::Make(
       client[threadId], blob_storage, tensorNBytes, capacity, layer, block_size,
-      3, llmCacheSyncLock, llmCacheObjectName, llmRefcntObjectName));
+      3, 10, llmCacheSyncLock, llmCacheObjectName, llmRefcntObjectName));
   blob_storages.push_back(blob_storage);
   kv_cache_manager = std::make_shared<KVCacheManager>(blob_storage);
   kv_cache_managers.push_back(kv_cache_manager);
