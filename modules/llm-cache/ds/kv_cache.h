@@ -104,6 +104,11 @@ class KVCacheBuilder : public vineyard::ObjectBuilder {
   Status Query(const std::vector<int>& token_list, int token,
                std::vector<std::pair<LLMKV, LLMKV>>& kv_state);
 
+  Status Query(const std::vector<int>& prefix,
+               const std::vector<int>& tokenList,
+               std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
+               size_t& matched);
+
   void Delete(std::shared_ptr<NodeData> evicted_node);
 
   Status Merge(std::shared_ptr<KVCache> kv_cache);

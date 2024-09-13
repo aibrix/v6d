@@ -17,6 +17,7 @@ limitations under the License.
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include "rax/radix.h"
@@ -258,6 +259,67 @@ Status KVCacheBuilder::Query(const std::vector<int>& tokenList, int token,
   }
 
   return kvCacheBlockBuilder->Query(offset, kvState);
+}
+
+Status KVCacheBuilder::Query(
+    const std::vector<int>& prefix, const std::vector<int>& tokenList,
+    std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
+    size_t& matched) {
+  RETURN_ON_ASSERT(tokenList.size() == kvCacheList.size(),
+                   "tokenList size must match kvCacheList size");
+
+  matched = 0;
+
+  auto nodeDataList = this->rootTree->Query(prefix, tokenList);
+
+  RETURN_ON_ASSERT(!nodeDataList.empty(), "Query llm cache failed.");
+
+  /* different treeData may have the same object ID */
+  std::vector<ObjectID> blockObjectIDs;
+  std::unordered_set<ObjectID> visited;
+  for (const auto& nodeData : nodeDataList) {
+    TreeData* treeData = reinterpret_cast<TreeData*>(nodeData->treeData->data);
+    if (!treeData->isPtr && visited.count(treeData->builderObjectID) == 0) {
+      blockObjectIDs.push_back(treeData->builderObjectID);
+      visited.insert(treeData->builderObjectID);
+    }
+  }
+
+  std::vector<std::shared_ptr<Object>> blockObjects;
+  if (!blockObjectIDs.empty()) {
+    blockObjects = client.GetObjects(blockObjectIDs);
+  }
+
+  std::vector<KVCacheBlockBuilder*> kvCacheBlockBuilders;
+  std::vector<int> offsets;
+  size_t idx = 0;
+  for (const auto& nodeData : nodeDataList) {
+    OffsetData* data = reinterpret_cast<OffsetData*>(nodeData->nodeData->data);
+    int offset = data->offset;
+    offsets.push_back(offset);
+
+    TreeData* treeData = reinterpret_cast<TreeData*>(nodeData->treeData->data);
+    KVCacheBlockBuilder* kvCacheBlockBuilder;
+    if (treeData->isPtr) {
+      kvCacheBlockBuilder =
+          reinterpret_cast<KVCacheBlockBuilder*>(treeData->kvCacheBlockBuilder);
+    } else {
+      ObjectID blockObjectID = treeData->builderObjectID;
+      RETURN_ON_ERROR(KVCacheBlockBuilder::Make(
+          client, blockObjectID,
+          std::dynamic_pointer_cast<KVCacheBlock>(blockObjects[idx++]),
+          kvCacheBlockBuilder));
+      treeData->kvCacheBlockBuilder = kvCacheBlockBuilder;
+      treeData->isPtr = true;
+      blockIDSetToDelete.insert(blockObjectID);
+    }
+    kvCacheBlockBuilders.push_back(kvCacheBlockBuilder);
+  }
+
+  matched = nodeDataList.size();
+
+  return KVCacheBlockBuilder::BulkQuery(kvCacheBlockBuilders, offsets,
+                                        kvCacheList);
 }
 
 void KVCacheBuilder::Delete(std::shared_ptr<NodeData> evictedNodeData) {

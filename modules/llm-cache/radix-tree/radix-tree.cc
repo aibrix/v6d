@@ -77,6 +77,11 @@ std::shared_ptr<NodeData> RadixTree::Query(const std::vector<int>& tokens) {
   return QueryInternal(tokens);
 }
 
+std::vector<std::shared_ptr<NodeData>> RadixTree::Query(
+    const std::vector<int>& prefix, const std::vector<int>& tokens) {
+  return QueryInternal(prefix, tokens);
+}
+
 std::vector<std::shared_ptr<NodeData>> RadixTree::Split(
     const std::vector<int>& tokens, std::shared_ptr<NodeData>& header) {
   return SplitInternal(tokens, header);
@@ -190,6 +195,48 @@ std::shared_ptr<NodeData> RadixTree::QueryInternal(
   return std::make_shared<NodeData>(
       reinterpret_cast<DataWrapper*>(raxGetData(dataNode)),
       reinterpret_cast<DataWrapper*>(subTreeNode->custom_data));
+}
+
+std::vector<std::shared_ptr<NodeData>> RadixTree::QueryInternal(
+    const std::vector<int>& prefix, const std::vector<int>& tokens) {
+  VLOG(100) << "Query";
+
+  if (this->tree == nullptr) {
+    return {};
+  }
+
+  std::vector<int> queryTokens(prefix.begin(), prefix.end());
+  queryTokens.insert(queryTokens.end(), tokens.begin(), tokens.end());
+  auto allNodes = raxFindAll(this->tree, queryTokens);
+
+  size_t skip = prefix.size();
+  size_t nKeyNodes = 0;
+  raxNode* subTreeNode = nullptr;
+  std::vector<std::shared_ptr<NodeData>> nodeDataList;
+
+  for (size_t i = 0; i < allNodes.size(); i++) {
+    auto node = allNodes[i];
+    /* A node could be sub tree node and key node at the same time */
+    if (node->issubtree) {
+      subTreeNode = node;
+    }
+
+    if (node->iskey) {
+      if (nKeyNodes++ <= skip) {
+        continue;
+      }
+
+      if (subTreeNode == nullptr) {
+        return nodeDataList;
+      }
+
+      nodeDataList.emplace_back(std::make_shared<NodeData>(
+          reinterpret_cast<DataWrapper*>(raxGetData(node)),
+          reinterpret_cast<DataWrapper*>(subTreeNode->custom_data)));
+    }
+  }
+
+  return nodeDataList;
 }
 
 std::string RadixTree::Serialize() {

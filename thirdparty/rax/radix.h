@@ -231,6 +231,8 @@ void* raxFind(rax* rax, const std::vector<int>& token_list);
 raxNode* raxFindAndReturnDataNode(rax* rax, const std::vector<int>& token_list,
                                   raxNode** sub_tree_node = NULL,
                                   bool set_timestamp = true);
+std::vector<raxNode*> raxFindAll(rax* rax, const std::vector<int>& token_list,
+                                 bool set_timestamp = true);
 void raxSetSubtree(raxNode* n);
 void raxSetSubtreeAllocated(raxNode* node);
 void raxSetSubtreeNotNull(raxNode* node);

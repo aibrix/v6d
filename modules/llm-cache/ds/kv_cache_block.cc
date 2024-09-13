@@ -139,13 +139,10 @@ KVCacheBlockBuilder::KVCacheBlockBuilder(
                                         (int64_t)(blockSize) *tensorNBytes);
 }
 
-Status KVCacheBlockBuilder::Make(Client& client, TreeData* treeData,
+Status KVCacheBlockBuilder::Make(Client& client, const ObjectID blockObjectID,
+                                 std::shared_ptr<KVCacheBlock> blockObject,
                                  KVCacheBlockBuilder*& kvCacheBlockBuilder) {
-  RETURN_ON_ASSERT(treeData != nullptr && treeData->isPtr == false);
-  ObjectID blockObjectID = treeData->builderObjectID;
-
-  std::shared_ptr<KVCacheBlock> blockObject;
-  RETURN_ON_ERROR(client.FetchAndGetObject(blockObjectID, blockObject));
+  RETURN_ON_ASSERT(blockObject != nullptr);
   kvCacheBlockBuilder = new KVCacheBlockBuilder(client, blockObject);
   if (blockObjectID != blockObject->id()) {
     // If the object is migrated, we should delete the copied object.
@@ -155,6 +152,85 @@ Status KVCacheBlockBuilder::Make(Client& client, TreeData* treeData,
                  << " It may cause memory leak.";
     }
   }
+  return Status::OK();
+}
+
+Status KVCacheBlockBuilder::Make(Client& client, TreeData* treeData,
+                                 KVCacheBlockBuilder*& kvCacheBlockBuilder) {
+  RETURN_ON_ASSERT(treeData != nullptr && treeData->isPtr == false);
+  ObjectID blockObjectID = treeData->builderObjectID;
+
+  std::shared_ptr<KVCacheBlock> blockObject;
+  RETURN_ON_ERROR(client.FetchAndGetObject(blockObjectID, blockObject));
+  return KVCacheBlockBuilder::Make(client, blockObjectID, blockObject,
+                                   kvCacheBlockBuilder);
+}
+
+Status KVCacheBlockBuilder::BulkQuery(
+    std::vector<KVCacheBlockBuilder*>& kvCacheBlockBuilders,
+    std::vector<int>& offsets,
+    std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList) {
+  RETURN_ON_ASSERT(!kvCacheBlockBuilders.empty());
+  RETURN_ON_ASSERT(kvCacheBlockBuilders.size() == offsets.size());
+  RETURN_ON_ASSERT(kvCacheBlockBuilders.size() <= kvCacheList.size());
+
+  int tensorNBytes;
+  std::vector<void*> dst_buffers;
+  std::vector<const void*> src_buffers;
+  for (size_t i = 0; i < offsets.size(); i++) {
+    auto index = offsets[i];
+    auto kvCacheBlockBuilder = kvCacheBlockBuilders[i];
+    auto& kvState = kvCacheList[i];
+
+    tensorNBytes = kvCacheBlockBuilder->tensorNBytes;
+
+    auto layer = kvCacheBlockBuilder->layer;
+    auto& keyStateTensorBuilderList =
+        kvCacheBlockBuilder->keyStateTensorBuilderList;
+    auto& valueStateTensorBuilderList =
+        kvCacheBlockBuilder->valueStateTensorBuilderList;
+
+    RETURN_ON_ASSERT((index >= 0 && index < kvCacheBlockBuilder->blockSize),
+                     "Index out of range: " + std::to_string(index));
+    RETURN_ON_ASSERT(
+        static_cast<int>(kvState.size()) == kvCacheBlockBuilder->layer,
+        "The size of kvState is not equal to layer");
+
+    if (kvState[0].first.data == nullptr) {
+      for (int currentLayer = 0; currentLayer < layer; currentLayer++) {
+        LLMKV& keyState = kvState[currentLayer].first;
+        LLMKV& valueState = kvState[currentLayer].second;
+        VINEYARD_ASSERT(keyState.data == nullptr && valueState.data == nullptr);
+        keyState.data = keyStateTensorBuilderList[currentLayer]->data() +
+                        index * tensorNBytes;
+        keyState.length = tensorNBytes;
+        valueState.data = valueStateTensorBuilderList[currentLayer]->data() +
+                          index * tensorNBytes;
+        valueState.length = tensorNBytes;
+      }
+    } else {
+      for (int currentLayer = 0; currentLayer < layer; currentLayer++) {
+        LLMKV& keyState = kvState[currentLayer].first;
+        LLMKV& valueState = kvState[currentLayer].second;
+        VINEYARD_ASSERT(keyState.data != nullptr && valueState.data != nullptr);
+        VINEYARD_ASSERT(keyState.length == tensorNBytes &&
+                        valueState.length == tensorNBytes);
+        dst_buffers.push_back(keyState.data);
+        dst_buffers.push_back(valueState.data);
+        src_buffers.push_back(keyStateTensorBuilderList[currentLayer]->data() +
+                              index * tensorNBytes);
+        src_buffers.push_back(
+            valueStateTensorBuilderList[currentLayer]->data() +
+            index * tensorNBytes);
+      }
+    }
+  }
+
+  if (!dst_buffers.empty()) {
+    vineyard::memory::concurrent_memcpy_n(dst_buffers, src_buffers,
+                                          tensorNBytes);
+  }
+
   return Status::OK();
 }
 
