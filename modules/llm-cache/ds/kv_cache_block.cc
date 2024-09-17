@@ -125,14 +125,18 @@ KVCacheBlockBuilder::KVCacheBlockBuilder(
   dst_buffers.reserve(this->layer * 2);
   src_buffers.reserve(this->layer * 2);
   for (int currentLayer = 0; currentLayer < this->layer; currentLayer++) {
-    dst_buffers.push_back(this->keyStateTensorBuilderList[currentLayer]->data());
-    dst_buffers.push_back(this->valueStateTensorBuilderList[currentLayer]->data());
-    src_buffers.push_back(kvCacheBlock->keyStateTensorList[currentLayer]->data());
-    src_buffers.push_back(kvCacheBlock->valueStateTensorList[currentLayer]->data());
+    dst_buffers.push_back(
+        this->keyStateTensorBuilderList[currentLayer]->data());
+    dst_buffers.push_back(
+        this->valueStateTensorBuilderList[currentLayer]->data());
+    src_buffers.push_back(
+        kvCacheBlock->keyStateTensorList[currentLayer]->data());
+    src_buffers.push_back(
+        kvCacheBlock->valueStateTensorList[currentLayer]->data());
   }
 
   vineyard::memory::concurrent_memcpy_n(dst_buffers, src_buffers,
-                                        (int64_t) (blockSize) *tensorNBytes);
+                                        (int64_t)(blockSize) *tensorNBytes);
 }
 
 Status KVCacheBlockBuilder::Make(Client& client, TreeData* treeData,
@@ -160,7 +164,7 @@ Status KVCacheBlockBuilder::Query(
                    "Index out of range: " + std::to_string(index));
   RETURN_ON_ASSERT(static_cast<int>(kvState.size()) == this->layer,
                    "The size of kvState is not equal to layer");
-  
+
   if (kvState[0].first.data == nullptr) {
     for (int currentLayer = 0; currentLayer < this->layer; currentLayer++) {
       LLMKV& keyState = kvState[currentLayer].first;
