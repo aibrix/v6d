@@ -176,6 +176,7 @@ jobs:
           VINEYARD_FLUID_FUSE_VERSION: "${{ github.sha }}"
         run: |
           make -C docker/ vineyard-fluid-fuse VINEYARD_FLUID_FUSE_VERSION=$VINEYARD_FLUID_FUSE_VERSION PLATFORM=${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }}
 
       - name: Extract tag name
         id: tag
@@ -190,7 +191,6 @@ jobs:
           docker tag ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }} \
                      ghcr.io/aibrix/v6d/vineyard-fluid-fuse:latest_${{ matrix.platform }}
 
-          docker push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }}
           docker push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
           docker push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:latest_${{ matrix.platform }}
 
