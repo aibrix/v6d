@@ -28,7 +28,7 @@ RUN mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backu
     yum -y update && \
     yum -y install devtoolset-10-libatomic-devel libtool
 
-# target: ghcr.io/v6d-io/v6d/vineyard-manylinux2014:20240218_$PLATFORM
+# target: ghcr.io/aibrix/v6d/vineyard-manylinux2014:20240218_$PLATFORM
 
 # Not sure why bundled cmake(3.28.0) in pipx doesn't work
 #

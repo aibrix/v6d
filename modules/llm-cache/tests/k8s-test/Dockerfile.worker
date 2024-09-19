@@ -1,4 +1,4 @@
-FROM ghcr.io/v6d-io/v6d/vineyard-python-dev:latest_x86_64 as builder
+FROM ghcr.io/aibrix/v6d/vineyard-python-dev:latest_x86_64 as builder
 
 FROM python:3.10
 

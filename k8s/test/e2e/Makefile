@@ -30,7 +30,7 @@ load-vineyardd-image:
 .PHONY: load-vineyardd-image
 
 load-vineyard-python-dev-image:
-	@docker tag ghcr.io/v6d-io/v6d/vineyard-python-dev:latest localhost:5001/vineyard-python-dev:latest
+	@docker tag ghcr.io/aibrix/v6d/vineyard-python-dev:latest localhost:5001/vineyard-python-dev:latest
 	@docker push localhost:5001/vineyard-python-dev:latest
 
 load-vineyard-operator-image:
@@ -52,10 +52,10 @@ prepare-e2e-test:
 build-base-images:
 	@echo "Building the python dev image"
 	@make -C ${ROOT_DIR}/docker build-python-dev
-	@docker tag ghcr.io/v6d-io/v6d/vineyard-python-dev:latest_x86_64 ghcr.io/v6d-io/v6d/vineyard-python-dev:latest
+	@docker tag ghcr.io/aibrix/v6d/vineyard-python-dev:latest_x86_64 ghcr.io/aibrix/v6d/vineyard-python-dev:latest
 	@echo "Building the vineyardd image"
 	@make -C ${ROOT_DIR}/docker vineyardd
-	@docker tag ghcr.io/v6d-io/v6d/vineyardd:alpine-latest_x86_64 vineyardcloudnative/vineyardd:latest
+	@docker tag ghcr.io/aibrix/v6d/vineyardd:alpine-latest_x86_64 vineyardcloudnative/vineyardd:latest
 
 # Build a 4-nodes(1 master and 3 workers) kind cluster with local registry
 build-local-cluster:

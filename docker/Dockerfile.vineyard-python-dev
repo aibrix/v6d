@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # build vineyard-python-dev
-FROM ghcr.io/v6d-io/v6d/vineyard-manylinux2014:20240803 as wheel
+FROM ghcr.io/aibrix/v6d/vineyard-manylinux2014:20240803 as wheel
 
 ENV python=cp310-cp310
 

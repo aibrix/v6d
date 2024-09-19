@@ -43,16 +43,16 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY: ghcr.io/v6d-io/v6d
+  REGISTRY: ghcr.io/aibrix/v6d
   IMG: vineyardcloudnative/vineyard-operator:latest
-  NIGHTLY_IMG: ghcr.io/v6d-io/v6d/vineyard-operator:nightly
-  LATEST_IMG: ghcr.io/v6d-io/v6d/vineyard-operator:latest
+  NIGHTLY_IMG: ghcr.io/aibrix/v6d/vineyard-operator:nightly
+  LATEST_IMG: ghcr.io/aibrix/v6d/vineyard-operator:latest
   KUBECONFIG: /tmp/e2e-k8s.config
 
 jobs:
   ci:
     runs-on: ubuntu-20.04
-    if: ${{ github.repository == 'v6d-io/v6d' }}
+    if: ${{ github.repository == 'aibrix/v6d' }}
     strategy:
       fail-fast: false
       matrix:
@@ -143,20 +143,20 @@ jobs:
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Set up qemu
-        if: ${{ matrix.job == 'release' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ matrix.job == 'release' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
-        if: ${{ matrix.job == 'release' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ matrix.job == 'release' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         uses: docker/setup-buildx-action@v2
 
       - name: Upload latest docker image of vineyard-operator
-        if: ${{ matrix.job == 'release' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ matrix.job == 'release' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: |
           # pre-publish to ghcr.io to avoid the "no basic auth credentials" error
-          export IMG=ghcr.io/v6d-io/v6d/vineyard-operator:${{ steps.tag.outputs.TAG }}
+          export IMG=ghcr.io/aibrix/v6d/vineyard-operator:${{ steps.tag.outputs.TAG }}
           make -C k8s docker-build-push-multi-arch REGISTRY=${{ env.REGISTRY }} VERSION=${{ steps.tag.outputs.TAG }}
-          export IMG=ghcr.io/v6d-io/v6d/vineyard-operator:latest
+          export IMG=ghcr.io/aibrix/v6d/vineyard-operator:latest
           make -C k8s docker-build-push-multi-arch REGISTRY=${{ env.REGISTRY }} VERSION=latest
 
       - name: Generate the python and vineyardd image for tests
@@ -368,4 +368,4 @@ jobs:
               ;;
           esac
 
-          echo "::notice:: ${{ matrix.job }}: https://www.stoat.dev/file-viewer?root=https://v6d-io--v6d--$short_sha--e2e-tests-$signed_url_key.stoat.page"
+          echo "::notice:: ${{ matrix.job }}: https://www.stoat.dev/file-viewer?root=https://aibrix--v6d--$short_sha--e2e-tests-$signed_url_key.stoat.page"

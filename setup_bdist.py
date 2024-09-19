@@ -119,7 +119,7 @@ setup(
     ],
     project_urls={
         "Documentation": "https://v6d.io",
-        "Source": "https://github.com/v6d-io/v6d",
-        "Tracker": "https://github.com/v6d-io/v6d/issues",
+        "Source": "https://github.com/aibrix/v6d",
+        "Tracker": "https://github.com/aibrix/v6d/issues",
     },
 )

@@ -20,7 +20,7 @@ FROM arm64v8/centos:7 as base_aarch64
 ARG PLATFORM
 FROM base_$PLATFORM
 
-# target: ghcr.io/v6d-io/v6d/vineyardd-alpine-builder:builder-latest_$PLATFORM
+# target: ghcr.io/aibrix/v6d/vineyardd-alpine-builder:builder-latest_$PLATFORM
 
 SHELL ["/bin/bash", "-c"]
 

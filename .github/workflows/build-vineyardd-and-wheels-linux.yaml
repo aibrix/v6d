@@ -27,7 +27,7 @@ concurrency:
 jobs:
   build-vineyardd:
     runs-on: ${{ matrix.os }}
-    if: ${{ github.repository == 'v6d-io/v6d' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'aibrix/v6d' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -57,7 +57,7 @@ jobs:
         run: |
           make -C docker/ vineyardd ALPINE_VERSION=$ALPINE_VERSION PLATFORM=${{ matrix.platform }}
           docker run --rm \
-               -v `pwd`:/target ghcr.io/v6d-io/v6d/vineyardd:alpine-${ALPINE_VERSION}_${{ matrix.platform }} \
+               -v `pwd`:/target ghcr.io/aibrix/v6d/vineyardd:alpine-${ALPINE_VERSION}_${{ matrix.platform }} \
                sh -c "cp /usr/local/bin/vineyardd /target/"
           # ldd ./vineyardd
 
@@ -69,31 +69,31 @@ jobs:
           tar zcvfh vineyardd.${{ runner.os }}-${{ matrix.platform }}.${{ github.sha }}.tar.gz ./vineyardd vineyardd.${{ matrix.platform }}.${{ github.sha }}.sha512sum
 
       - name: Upload docker image as nightly
-        if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'aibrix/v6d' }}
         run: |
-          docker push ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }}
 
       - name: Extract tag name
         id: tag
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Tag and upload docker for releases
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: |
-          docker tag ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }} \
-                     ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
-          docker tag ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }} \
-                     ghcr.io/v6d-io/v6d/vineyardd:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
-          docker tag ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }} \
-                     ghcr.io/v6d-io/v6d/vineyardd:alpine-latest_${{ matrix.platform }}
-          docker tag ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }} \
-                     ghcr.io/v6d-io/v6d/vineyardd:latest_${{ matrix.platform }}
+          docker tag ghcr.io/aibrix/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }} \
+                     ghcr.io/aibrix/v6d/vineyardd:alpine-${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
+          docker tag ghcr.io/aibrix/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }} \
+                     ghcr.io/aibrix/v6d/vineyardd:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
+          docker tag ghcr.io/aibrix/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }} \
+                     ghcr.io/aibrix/v6d/vineyardd:alpine-latest_${{ matrix.platform }}
+          docker tag ghcr.io/aibrix/v6d/vineyardd:alpine-${{ github.sha }}_${{ matrix.platform }} \
+                     ghcr.io/aibrix/v6d/vineyardd:latest_${{ matrix.platform }}
 
-          docker push ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
-          docker push ghcr.io/v6d-io/v6d/vineyardd:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
-          docker push ghcr.io/v6d-io/v6d/vineyardd:alpine-latest_${{ matrix.platform }}
-          docker push ghcr.io/v6d-io/v6d/vineyardd:latest_${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyardd:alpine-${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyardd:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyardd:alpine-latest_${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyardd:latest_${{ matrix.platform }}
 
       - name: Upload CI artifacts
         uses: actions/upload-artifact@v3
@@ -104,7 +104,7 @@ jobs:
   build-vineyardd-manifest:
     needs: [build-vineyardd]
     runs-on: ${{ matrix.os }}
-    if: ${{ github.repository == 'v6d-io/v6d' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'aibrix/v6d' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -122,29 +122,29 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate multi-arch manifest
-        if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'aibrix/v6d' }}
         run: |
           make -C docker/ vineyardd-manifest ALPINE_VERSION=${{ github.sha }}
-          docker manifest push ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ github.sha }}
+          docker manifest push ghcr.io/aibrix/v6d/vineyardd:alpine-${{ github.sha }}
 
       - name: Extract tag name
         id: tag
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Tag and upload manifest for releases
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: |
           make -C docker/ vineyardd-manifest ALPINE_VERSION=${{ steps.tag.outputs.TAG }}
-          docker manifest push ghcr.io/v6d-io/v6d/vineyardd:alpine-${{ steps.tag.outputs.TAG }}
+          docker manifest push ghcr.io/aibrix/v6d/vineyardd:alpine-${{ steps.tag.outputs.TAG }}
 
           make -C docker/ vineyardd-manifest ALPINE_MANIFEST_TAG=latest
-          docker manifest push ghcr.io/v6d-io/v6d/vineyardd:latest
+          docker manifest push ghcr.io/aibrix/v6d/vineyardd:latest
 
   build-vineyard-fluid-fuse:
     needs: [build-vineyardd]
     runs-on: ${{ matrix.os }}
-    if: ${{ github.repository == 'v6d-io/v6d' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'aibrix/v6d' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -176,25 +176,25 @@ jobs:
 
       - name: Extract tag name
         id: tag
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Tag and upload docker for releases
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: |
-          docker tag ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }} \
-                     ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
-          docker tag ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }} \
-                     ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:latest_${{ matrix.platform }}
+          docker tag ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }} \
+                     ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
+          docker tag ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }} \
+                     ghcr.io/aibrix/v6d/vineyard-fluid-fuse:latest_${{ matrix.platform }}
 
-          docker push ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }}
-          docker push ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
-          docker push ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:latest_${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ github.sha }}_${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ steps.tag.outputs.TAG }}_${{ matrix.platform }}
+          docker push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:latest_${{ matrix.platform }}
 
   build-vineyard-fluid-fuse-manifest:
     needs: [build-vineyard-fluid-fuse]
     runs-on: ${{ matrix.os }}
-    if: ${{ github.repository == 'v6d-io/v6d' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'aibrix/v6d' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -212,28 +212,28 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate multi-arch manifest
-        if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'aibrix/v6d' }}
         run: |
           make -C docker/ vineyard-fluid-fuse-manifest VINEYARD_FLUID_FUSE_VERSION=${{ github.sha }}
-          docker manifest push ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:${{ github.sha }}
+          docker manifest push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ github.sha }}
 
       - name: Extract tag name
         id: tag
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Tag and upload manifest for releases
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: |
           make -C docker/ vineyard-fluid-fuse-manifest VINEYARD_FLUID_FUSE_VERSION=${{ steps.tag.outputs.TAG }}
-          docker manifest push ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:${{ steps.tag.outputs.TAG }}
+          docker manifest push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:${{ steps.tag.outputs.TAG }}
 
           make -C docker/ vineyard-fluid-fuse-manifest VINEYARD_FLUID_FUSE_VERSION=latest
-          docker manifest push ghcr.io/v6d-io/v6d/vineyard-fluid-fuse:latest
+          docker manifest push ghcr.io/aibrix/v6d/vineyard-fluid-fuse:latest
 
   build-vineyardctl:
     runs-on: ${{ matrix.os }}
-    if: ${{ github.repository == 'v6d-io/v6d' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'aibrix/v6d' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -250,7 +250,7 @@ jobs:
 
       - name: Extract tag name
         id: tag
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Build vineyardctl
@@ -270,7 +270,7 @@ jobs:
 
       - name: Upload vineyardctl to tagged release
         uses: svenstaro/upload-release-action@v2
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./vineyardctl
@@ -297,7 +297,7 @@ jobs:
   build-bdist-wheels:
     needs: [build-vineyardd, build-vineyardctl]
     runs-on: ${{ matrix.os }}
-    if: ${{ github.repository == 'v6d-io/v6d' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'aibrix/v6d' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -338,7 +338,7 @@ jobs:
 
       - name: Upload wheels to tagged release
         uses: svenstaro/upload-release-action@v2
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: fixed_wheels/*.whl
@@ -356,7 +356,7 @@ jobs:
 
   build-wheels:
     runs-on: ${{ matrix.os }}
-    if: ${{ github.repository == 'v6d-io/v6d' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'aibrix/v6d' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
@@ -402,7 +402,7 @@ jobs:
             make -C docker/ python-wheel WHEEL_PYTHON=$py WHEEL_VERSION=$WHEEL_VERSION PLATFORM=${{ matrix.platform }}
             docker run --rm \
               -v `pwd`/fixed_wheels:/target \
-              ghcr.io/v6d-io/v6d/vineyard-wheel:${WHEEL_VERSION}_${py}_${{ matrix.platform }} \
+              ghcr.io/aibrix/v6d/vineyard-wheel:${WHEEL_VERSION}_${py}_${{ matrix.platform }} \
               sh -c "cp -r /work/fixed_wheels/* /target/"
           done
           ls -la ./fixed_wheels/
@@ -414,7 +414,7 @@ jobs:
 
       - name: Upload wheels to tagged release
         uses: svenstaro/upload-release-action@v2
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'v6d-io/v6d' }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'aibrix/v6d' }}
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: fixed_wheels/*.whl
