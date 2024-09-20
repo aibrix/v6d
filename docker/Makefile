@@ -1,4 +1,4 @@
-REGISTRY 					:= ghcr.io/v6d-io/v6d
+REGISTRY 					:= ghcr.io/aibrix/v6d
 RELEASE_REGISTRY			:= docker.io/vineyardcloudnative
 
 # can be: x86_64, aarch64
@@ -67,7 +67,7 @@ vineyardd:
 	docker buildx build ../ \
 		--progress=$(BUILD_PROGRESS) \
 		--file ./Dockerfile.vineyardd \
-		-t ghcr.io/v6d-io/v6d/vineyardd:$(ALPINE_TAG) \
+		-t ghcr.io/aibrix/v6d/vineyardd:$(ALPINE_TAG) \
 		--load \
 		--platform linux/$(ARCH)
 .PHONY: vineyardd

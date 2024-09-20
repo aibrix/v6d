@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ghcr.io/v6d-io/v6d/vineyard-python-dev:latest
+FROM ghcr.io/aibrix/v6d/vineyard-python-dev:latest
 
 WORKDIR /
 

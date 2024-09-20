@@ -10,7 +10,7 @@ resolver = "2"
 [workspace.package]
 version = "0.18.1"
 homepage = "https://v6d.io"
-repository = "https://github.com/v6d-io/v6d.git"
+repository = "https://github.com/aibrix/v6d.git"
 authors = ["Vineyard <vineyard@alibaba-inc.com>"]
 license = "Apache-2.0"
 keywords = ["vineyard"]

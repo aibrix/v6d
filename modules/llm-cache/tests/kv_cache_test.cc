@@ -195,11 +195,11 @@ void inference(std::shared_ptr<KVCacheManager>& kv_cache_manager,
   LOG(INFO) << "kv_state_to_query size: " << kv_state_to_query.size()
             << ", layer" << layer << ", tensorNBytes" << tensorNBytes;
   for (int i = 0; i < tokens.size(); i++) {
-      kv_state_to_query.clear();
-      for (int currentLayer = 0; currentLayer < layer; currentLayer++) {
-        kv_state_to_query.emplace_back(LLMKV{nullptr, 0}, LLMKV{nullptr, 0});
-      }
-      kv_state_to_query_list.emplace_back(kv_state_to_query);
+    kv_state_to_query.clear();
+    for (int currentLayer = 0; currentLayer < layer; currentLayer++) {
+      kv_state_to_query.emplace_back(LLMKV{nullptr, 0}, LLMKV{nullptr, 0});
+    }
+    kv_state_to_query_list.emplace_back(kv_state_to_query);
   }
   size_t matched = 0;
   Status result = kv_cache_manager->Query(inference_tokens, tokens,
@@ -230,12 +230,12 @@ void threadFunc(std::string socket) {
   sleep(5);
 
   for (size_t i = 0; i < tokens_list.size(); i++) {
-      size_t half_index = tokens_list[i].size() / 2;
-      std::vector<int> prefix(tokens_list[i].begin(),
-                              tokens_list[i].begin() + half_index);
-      std::vector<int> tokens_list_rest(tokens_list[i].begin() + half_index,
-                                        tokens_list[i].end());
-      inference(manager, prefix, tokens_list_rest);
+    size_t half_index = tokens_list[i].size() / 2;
+    std::vector<int> prefix(tokens_list[i].begin(),
+                            tokens_list[i].begin() + half_index);
+    std::vector<int> tokens_list_rest(tokens_list[i].begin() + half_index,
+                                      tokens_list[i].end());
+    inference(manager, prefix, tokens_list_rest);
   }
 
   LOG(INFO) << "inference end";
