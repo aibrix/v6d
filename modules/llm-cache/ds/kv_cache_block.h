@@ -136,8 +136,17 @@ class KVCacheBlockBuilder : public ObjectBuilder {
   KVCacheBlockBuilder(Client& client,
                       std::shared_ptr<KVCacheBlock> kv_cache_block);
 
+  static Status Make(Client& client, const ObjectID blockObjectID,
+                     std::shared_ptr<KVCacheBlock> blockObject,
+                     KVCacheBlockBuilder*& kvCacheBlockBuilder);
+
   static Status Make(Client& client, TreeData* treeData,
                      KVCacheBlockBuilder*& kvCacheBlockBuilder);
+
+  static Status BulkQuery(
+      std::vector<KVCacheBlockBuilder*>& kvCacheBlockBuilders,
+      std::vector<int>& offsets,
+      std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList);
 
   /**
    * @brief Update the kv-state using next token.

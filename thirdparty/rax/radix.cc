@@ -1089,12 +1089,7 @@ raxStack raxFindWithStack(rax *rax, const std::vector<int>& token_list) {
 
     raxStack ts;
     raxStackInit(&ts);
-    //debugf("### Lookup: %.*s\n", (int)len, s);
-    int splitpos = 0;
-    size_t len = token_list.size();
-    size_t i = raxLowWalk(rax,token_list,&h,NULL,&splitpos,&ts);
-    if (i != len || (h->iscompr && splitpos != 0) || !h->iskey)
-        return ts;
+    raxLowWalk(rax,token_list,&h,NULL,NULL,&ts);
     return ts;
 }
 
@@ -1120,6 +1115,40 @@ raxNode *raxFindAndReturnDataNode(rax *rax, const std::vector<int>& token_list, 
     }
 
     return h;
+}
+
+/*
+ * Find all key nodes and tree nodes along the token list.
+ *
+ * A typical return value is in the format of
+ * [tree node 0, key node 0, key node 1,
+ *  tree node 1, key node 2, key node 3, key node 4,
+ *  tree node 2, key node 5], where `tree node 0` is the tree node
+ * of `key node 0` and `key node 1`, `tree node 1` is the tree node
+ * of `key node 2`, `key node 3`, and `key node 4`, etc.
+ */
+std::vector<raxNode*> raxFindAll(rax* rax, const std::vector<int>& token_list,
+                                 bool set_timestamp) {
+  std::vector<raxNode*> nodes;
+  raxNode* h;
+
+  raxStack ts;
+  raxStackInit(&ts);
+
+  raxLowWalk(rax, token_list, &h, NULL, NULL, &ts, set_timestamp);
+
+  raxNode* tmp = h;
+  while (tmp != nullptr) {
+    if (tmp->iskey || tmp->issubtree) {
+        nodes.push_back(tmp);
+    }
+
+    tmp = (raxNode*) raxStackPop(&ts);
+  }
+
+  std::reverse(nodes.begin(), nodes.end());
+
+  return nodes;
 }
 
 int raxFindNode(rax *rax, const std::vector<int>& token_list, void **node) {

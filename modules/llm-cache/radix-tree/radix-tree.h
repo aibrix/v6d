@@ -72,6 +72,9 @@ class RadixTree : public std::enable_shared_from_this<RadixTree> {
 
   std::shared_ptr<NodeData> QueryInternal(const std::vector<int>& tokens);
 
+  std::vector<std::shared_ptr<NodeData>> QueryInternal(
+      const std::vector<int>& prefix, const std::vector<int>& tokens);
+
   std::vector<std::shared_ptr<NodeData>> SplitInternal(
       const std::vector<int>& tokens, std::shared_ptr<NodeData>& header);
 
@@ -87,6 +90,9 @@ class RadixTree : public std::enable_shared_from_this<RadixTree> {
               std::shared_ptr<NodeData>& evictedNode);
 
   std::shared_ptr<NodeData> Query(const std::vector<int>& tokens);
+
+  std::vector<std::shared_ptr<NodeData>> Query(const std::vector<int>& prefix,
+                                               const std::vector<int>& tokens);
 
   std::vector<std::shared_ptr<NodeData>> Split(
       const std::vector<int>& tokens, std::shared_ptr<NodeData>& header);
