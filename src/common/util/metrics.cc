@@ -13,17 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef SRC_COMMON_UTIL_LOGGING_H_
-#define SRC_COMMON_UTIL_LOGGING_H_
-
-#include <glog/logging.h>
-
-namespace google {
-bool IsLoggingInitialized();
-}  // namespace google
+#include "common/util/metrics.h"
 
 namespace vineyard {
-namespace logging = google;  // NOLINT
-}  // namespace vineyard
 
-#endif  // SRC_COMMON_UTIL_LOGGING_H_
+// metrics and prometheus
+DEFINE_bool(prometheus, false,
+            "Whether to print metrics for prometheus or not");
+DEFINE_bool(metrics, false,
+            "Alias for --prometheus, and takes precedence over --prometheus");
+
+}  // namespace vineyard

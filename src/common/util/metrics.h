@@ -13,16 +13,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef SRC_SERVER_UTIL_METRICS_H_
-#define SRC_SERVER_UTIL_METRICS_H_
+#ifndef SRC_COMMON_UTIL_METRICS_H_
+#define SRC_COMMON_UTIL_METRICS_H_
 
 #include <string>  // IWYU pragma: keep
 
-#include "common/util/env.h"             // IWYU pragma: keep
-#include "common/util/logging.h"         // IWYU pragma: keep
-#include "server/util/spec_resolvers.h"  // IWYU pragma: keep
+#include "common/util/env.h"        // IWYU pragma: keep
+#include "common/util/functions.h"  // IWYU pragma: keep
+#include "common/util/logging.h"    // IWYU pragma: keep
 
 namespace vineyard {
+// Whether to print metrics for prometheus or not, default value is false.
+DECLARE_bool(prometheus);
+DECLARE_bool(metrics);
+
+#ifndef LOG_GET_CURRENT_TIME
+// TODO: We can use some lightweight clock implementation, e.g., the Abseil
+// TSC, to optimize the overhead of frequently getting current time.
+#define LOG_GET_CURRENT_TIME() (FLAGS_prometheus ? GetCurrentTime() : 0)
+#endif
 
 #ifndef LOG_COUNTER
 #define LOG_COUNTER(metric_name, label)                                   \
@@ -31,6 +40,16 @@ namespace vineyard {
     LOG_IF_EVERY_N(INFO, FLAGS_prometheus, 1)                             \
         << __METRIC_USER << " " << (label) << " " << (metric_name) << " " \
         << logging::COUNTER;                                              \
+  } while (0)
+#endif
+
+#ifndef LOG_COUNTER2
+#define LOG_COUNTER2(metric_name, label1, label2)                     \
+  do {                                                                \
+    static const std::string __METRIC_USER = read_env("USER", "v6d"); \
+    LOG_IF_EVERY_N(INFO, FLAGS_prometheus, 1)                         \
+        << __METRIC_USER << " " << (label1) << " " << (label2) << " " \
+        << (metric_name) << " " << logging::COUNTER;                  \
   } while (0)
 #endif
 
@@ -45,4 +64,4 @@ namespace vineyard {
 
 }  // namespace vineyard
 
-#endif  // SRC_SERVER_UTIL_METRICS_H_
+#endif  // SRC_COMMON_UTIL_METRICS_H_

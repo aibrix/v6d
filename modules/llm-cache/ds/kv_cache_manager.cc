@@ -21,12 +21,38 @@ limitations under the License.
 
 #include "client/client.h"
 #include "common/util/logging.h"
+#include "common/util/metrics.h"
 #include "common/util/status.h"
 #include "llm-cache/ds/kv_cache.h"
 #include "llm-cache/ds/kv_cache_manager.h"
 #include "llm-cache/storage/blob_storage.h"
 #include "llm-cache/storage/local_file_storage.h"
 #include "llm-cache/storage/vineyard_file_storage.h"
+
+#define KV_PREFIX "llm_kv_cache"
+#define KV_REQUEST_PREFIX KV_PREFIX "_request"
+
+#define LOG_UPDATE(op, start, end, status, prefix_size, curr_size,            \
+                   updated_size)                                              \
+  LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_prefix", prefix_size);     \
+  LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_curr", curr_size);         \
+  if (status.ok()) {                                                          \
+    LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_updated", updated_size); \
+  }                                                                           \
+  LOG_SUMMARY(KV_REQUEST_PREFIX "_duration_microseconds", op,                 \
+              (end - start) * 1000000);                                       \
+  LOG_COUNTER2(KV_REQUEST_PREFIX "_total", op, status.CodeAsLabel())
+
+#define LOG_QUERY(op, start, end, status, prefix_size, curr_size,             \
+                  matched_size)                                               \
+  LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_prefix", prefix_size);     \
+  LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_curr", curr_size);         \
+  if (status.ok()) {                                                          \
+    LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_matched", matched_size); \
+  }                                                                           \
+  LOG_SUMMARY(KV_REQUEST_PREFIX "_duration_microseconds", op,                 \
+              (end - start) * 1000000);                                       \
+  LOG_COUNTER2(KV_REQUEST_PREFIX "_total", op, status.CodeAsLabel())
 
 namespace vineyard {
 
@@ -174,7 +200,12 @@ Status KVCacheManager::Update(
   if (kvCacheList.size() != tokenList.size()) {
     return Status::Invalid("Token list size not match kv state list size");
   }
-  return storage->Update(tokenList, kvCacheList, updated);
+  double startTime = LOG_GET_CURRENT_TIME();
+  auto status = storage->Update(tokenList, kvCacheList, updated);
+  double endTime = LOG_GET_CURRENT_TIME();
+  LOG_UPDATE("update", startTime, endTime, status, 0 /* prefix length */,
+             tokenList.size(), updated);
+  return status;
 }
 
 /**
@@ -234,7 +265,12 @@ Status KVCacheManager::Update(
   if (kvCacheList.size() != tokenList.size()) {
     return Status::Invalid("Token list size not match kv state list size");
   }
-  return storage->Update(prefix, tokenList, kvCacheList, updated);
+  double startTime = LOG_GET_CURRENT_TIME();
+  auto status = storage->Update(prefix, tokenList, kvCacheList, updated);
+  double endTime = LOG_GET_CURRENT_TIME();
+  LOG_UPDATE("update", startTime, endTime, status, prefix.size(),
+             tokenList.size(), updated);
+  return status;
 }
 
 /**
@@ -275,7 +311,12 @@ Status KVCacheManager::Update(
 Status KVCacheManager::Update(
     const std::vector<int>& tokenList, int nextToken,
     const std::vector<std::pair<LLMKV, LLMKV>>& kvState) {
-  return storage->Update(tokenList, nextToken, kvState);
+  double startTime = LOG_GET_CURRENT_TIME();
+  auto status = storage->Update(tokenList, nextToken, kvState);
+  double endTime = LOG_GET_CURRENT_TIME();
+  LOG_UPDATE("update", startTime, endTime, status, tokenList.size(),
+             1 /* num of tokens to udpate */, 1 /* num of updated tokens */);
+  return status;
 }
 
 Status KVCacheManager::BatchedUpdate(
@@ -286,7 +327,12 @@ Status KVCacheManager::BatchedUpdate(
     return Status::Invalid("Token list size not match kv state list size");
   }
 
-  return storage->BatchedUpdate(tokenList, kvCacheList, updated);
+  double startTime = LOG_GET_CURRENT_TIME();
+  auto status = storage->BatchedUpdate(tokenList, kvCacheList, updated);
+  double endTime = LOG_GET_CURRENT_TIME();
+  LOG_UPDATE("batched_update", startTime, endTime, status,
+             0 /* prefix length */, tokenList.size(), updated);
+  return status;
 }
 
 /**
@@ -381,7 +427,12 @@ Status KVCacheManager::Query(
     const std::vector<int>& tokenList,
     std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
     size_t& matched) {
-  return storage->Query(tokenList, kvCacheList, matched);
+  double startTime = LOG_GET_CURRENT_TIME();
+  auto status = storage->Query(tokenList, kvCacheList, matched);
+  double endTime = LOG_GET_CURRENT_TIME();
+  LOG_QUERY("query", startTime, endTime, status, 0 /* prefix length */,
+            tokenList.size(), matched);
+  return status;
 }
 
 /**
@@ -429,21 +480,36 @@ Status KVCacheManager::Query(
  */
 Status KVCacheManager::Query(const std::vector<int>& prefix, int nextToken,
                              std::vector<std::pair<LLMKV, LLMKV>>& kvState) {
-  return storage->Query(prefix, nextToken, kvState);
+  double startTime = LOG_GET_CURRENT_TIME();
+  auto status = storage->Query(prefix, nextToken, kvState);
+  double endTime = LOG_GET_CURRENT_TIME();
+  LOG_QUERY("query", startTime, endTime, status, prefix.size(),
+            1 /* num of tokens to query */, 1 /* num of matched tokens */);
+  return status;
 }
 
 Status KVCacheManager::Query(
     const std::vector<int>& prefix, const std::vector<int>& tokenList,
     std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
     size_t& matched) {
-  return storage->Query(prefix, tokenList, kvCacheList, matched);
+  double startTime = LOG_GET_CURRENT_TIME();
+  auto status = storage->Query(prefix, tokenList, kvCacheList, matched);
+  double endTime = LOG_GET_CURRENT_TIME();
+  LOG_QUERY("query", startTime, endTime, status, prefix.size(),
+            tokenList.size(), matched);
+  return status;
 }
 
 Status KVCacheManager::BatchedQuery(
     const std::vector<int>& tokenList,
     std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kvCacheList,
     size_t& matched) {
-  return storage->BatchedQuery(tokenList, kvCacheList, matched);
+  double startTime = LOG_GET_CURRENT_TIME();
+  auto status = storage->BatchedQuery(tokenList, kvCacheList, matched);
+  double endTime = LOG_GET_CURRENT_TIME();
+  LOG_QUERY("batched_query", startTime, endTime, status, 0 /* prefix length */,
+            tokenList.size(), matched);
+  return status;
 }
 
 Status KVCacheManager::ClearGlobalCache(Client& client,

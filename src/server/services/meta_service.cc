@@ -25,6 +25,7 @@ limitations under the License.
 #include "common/util/env.h"
 #include "common/util/functions.h"
 #include "common/util/logging.h"  // IWYU pragma: keep
+#include "common/util/metrics.h"
 #include "common/util/status.h"
 #include "server/services/local_meta_service.h"
 #if defined(BUILD_VINEYARDD_ETCD)
@@ -34,7 +35,6 @@ limitations under the License.
 #include "server/services/redis_meta_service.h"
 #endif  // BUILD_VINEYARDD_REDIS
 #include "server/util/meta_tree.h"
-#include "server/util/metrics.h"
 
 namespace vineyard {
 

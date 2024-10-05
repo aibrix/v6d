@@ -1,0 +1,277 @@
+diff --git a/modules/llm-cache/ds/kv_cache_manager.cc b/modules/llm-cache/ds/kv_cache_manager.cc
+index 9dd25e2a..501a9eff 100644
+--- a/modules/llm-cache/ds/kv_cache_manager.cc
++++ b/modules/llm-cache/ds/kv_cache_manager.cc
+@@ -38,12 +38,10 @@ limitations under the License.
+   LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_curr", curr_size);         \
+   if (status.ok()) {                                                          \
+     LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_updated", updated_size); \
+-  } else {                                                                    \
+-    LOG_COUNTER(KV_REQUEST_PREFIX "_error", op);                              \
+   }                                                                           \
+   LOG_SUMMARY(KV_REQUEST_PREFIX "_duration_microseconds", op,                 \
+               (end - start) * 1000000);                                       \
+-  LOG_COUNTER(KV_REQUEST_PREFIX "_total", op)
++  LOG_COUNTER2(KV_REQUEST_PREFIX "_total", op, status.CodeAsLabel())
+ 
+ #define LOG_QUERY(op, start, end, status, prefix_size, curr_size,             \
+                   matched_size)                                               \
+@@ -51,12 +49,10 @@ limitations under the License.
+   LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_curr", curr_size);         \
+   if (status.ok()) {                                                          \
+     LOG_SUMMARY(KV_REQUEST_PREFIX "_nr_tokens", op "_matched", matched_size); \
+-    LOG_COUNTER(KV_PREFIX "_hit", op);                                        \
+-  } else {                                                                    \
+-    LOG_COUNTER(KV_PREFIX "_miss", op);                                       \
+   }                                                                           \
+   LOG_SUMMARY(KV_REQUEST_PREFIX "_duration_microseconds", op,                 \
+-              (end - start) * 1000000)
++              (end - start) * 1000000);                                       \
++  LOG_COUNTER2(KV_REQUEST_PREFIX "_total", op, status.CodeAsLabel())
+ 
+ namespace vineyard {
+ 
+@@ -207,8 +203,8 @@ Status KVCacheManager::Update(
+   double startTime = LOG_GET_CURRENT_TIME();
+   auto status = storage->Update(tokenList, kvCacheList, updated);
+   double endTime = LOG_GET_CURRENT_TIME();
+-  LOG_UPDATE("update", startTime, endTime, status, 0, tokenList.size(),
+-             updated);
++  LOG_UPDATE("update", startTime, endTime, status, 0 /* prefix length */,
++             tokenList.size(), updated);
+   return status;
+ }
+ 
+@@ -318,7 +314,8 @@ Status KVCacheManager::Update(
+   double startTime = LOG_GET_CURRENT_TIME();
+   auto status = storage->Update(tokenList, nextToken, kvState);
+   double endTime = LOG_GET_CURRENT_TIME();
+-  LOG_UPDATE("update", startTime, endTime, status, tokenList.size(), 1, 1);
++  LOG_UPDATE("update", startTime, endTime, status, tokenList.size(),
++             1 /* num of tokens to udpate */, 1 /* num of updated tokens */);
+   return status;
+ }
+ 
+@@ -333,8 +330,8 @@ Status KVCacheManager::BatchedUpdate(
+   double startTime = LOG_GET_CURRENT_TIME();
+   auto status = storage->BatchedUpdate(tokenList, kvCacheList, updated);
+   double endTime = LOG_GET_CURRENT_TIME();
+-  LOG_UPDATE("batched_update", startTime, endTime, status, 0, tokenList.size(),
+-             updated);
++  LOG_UPDATE("batched_update", startTime, endTime, status,
++             0 /* prefix length */, tokenList.size(), updated);
+   return status;
+ }
+ 
+@@ -433,7 +430,8 @@ Status KVCacheManager::Query(
+   double startTime = LOG_GET_CURRENT_TIME();
+   auto status = storage->Query(tokenList, kvCacheList, matched);
+   double endTime = LOG_GET_CURRENT_TIME();
+-  LOG_QUERY("query", startTime, endTime, status, 0, tokenList.size(), matched);
++  LOG_QUERY("query", startTime, endTime, status, 0 /* prefix length */,
++            tokenList.size(), matched);
+   return status;
+ }
+ 
+@@ -485,7 +483,8 @@ Status KVCacheManager::Query(const std::vector<int>& prefix, int nextToken,
+   double startTime = LOG_GET_CURRENT_TIME();
+   auto status = storage->Query(prefix, nextToken, kvState);
+   double endTime = LOG_GET_CURRENT_TIME();
+-  LOG_QUERY("query", startTime, endTime, status, prefix.size(), 1, 1);
++  LOG_QUERY("query", startTime, endTime, status, prefix.size(),
++            1 /* num of tokens to query */, 1 /* num of matched tokens */);
+   return status;
+ }
+ 
+@@ -508,8 +507,8 @@ Status KVCacheManager::BatchedQuery(
+   double startTime = LOG_GET_CURRENT_TIME();
+   auto status = storage->BatchedQuery(tokenList, kvCacheList, matched);
+   double endTime = LOG_GET_CURRENT_TIME();
+-  LOG_QUERY("batched_query", startTime, endTime, status, 0, tokenList.size(),
+-            matched);
++  LOG_QUERY("batched_query", startTime, endTime, status, 0 /* prefix length */,
++            tokenList.size(), matched);
+   return status;
+ }
+ 
+diff --git a/prometheus/grok_exporter.yml b/prometheus/grok_exporter.yml
+index c7f90afc..23358ba6 100644
+--- a/prometheus/grok_exporter.yml
++++ b/prometheus/grok_exporter.yml
+@@ -26,11 +26,12 @@ metrics:
+   - type: counter
+     name: llm_kv_cache_request_total
+     help: Number of Update/BatchedUpdate or Query/BatchedQuery requests
+-    match: '%{USERNAME:user} %{LABEL:op} llm_kv_cache_request_total %{NUMBER:val}'
++    match: '%{USERNAME:user} %{LABEL:op} %{LABEL:status} llm_kv_cache_request_total %{NUMBER:val}'
+     value: '{{.val}}'
+     labels:
+       user: '{{.user}}'
+       operation: '{{.op}}'
++      status: '{{.status}}'
+   - type: counter
+     name: llm_kv_cache_hit
+     help: Number of cache hits of LLM KV cache
+diff --git a/src/common/util/metrics.h b/src/common/util/metrics.h
+index 64833d14..bb810719 100644
+--- a/src/common/util/metrics.h
++++ b/src/common/util/metrics.h
+@@ -41,6 +41,16 @@ DECLARE_bool(metrics);
+   } while (0)
+ #endif
+ 
++#ifndef LOG_COUNTER2
++#define LOG_COUNTER2(metric_name, label1, lable2)                     \
++  do {                                                                \
++    static const std::string __METRIC_USER = read_env("USER", "v6d"); \
++    LOG_IF_EVERY_N(INFO, FLAGS_prometheus, 1)                         \
++        << __METRIC_USER << " " << (label1) << " " << (label2) << " " \
++        << (metric_name) << " " << logging::COUNTER;                  \
++  } while (0)
++#endif
++
+ #ifndef LOG_SUMMARY
+ #define LOG_SUMMARY(metric_name, label, metric_val)                          \
+   do {                                                                       \
+diff --git a/src/common/util/status.cc b/src/common/util/status.cc
+index a2d56452..8e1edf47 100644
+--- a/src/common/util/status.cc
++++ b/src/common/util/status.cc
+@@ -191,6 +191,123 @@ std::string Status::CodeAsString() const {
+   return std::string(type);
+ }
+ 
++std::string Status::CodeAsLabel() const {
++  if (state_ == nullptr) {
++    return "OK";
++  }
++
++  const char* type;
++  switch (code()) {
++  case StatusCode::kOK:
++    type = "OK";
++    break;
++  case StatusCode::kInvalid:
++    type = "Invalid";
++    break;
++  case StatusCode::kKeyError:
++    type = "KeyError";
++    break;
++  case StatusCode::kTypeError:
++    type = "TypeError";
++    break;
++  case StatusCode::kIOError:
++    type = "IOError";
++    break;
++  case StatusCode::kEndOfFile:
++    type = "EndOfFile";
++    break;
++  case StatusCode::kNotImplemented:
++    type = "NotImplemented";
++    break;
++  case StatusCode::kAssertionFailed:
++    type = "AssertionFailed";
++    break;
++  case StatusCode::kUserInputError:
++    type = "UserInputError";
++    break;
++  case StatusCode::kObjectExists:
++    type = "ObjectExists";
++    break;
++  case StatusCode::kObjectNotExists:
++    type = "ObjectNotExists";
++    break;
++  case StatusCode::kObjectSealed:
++    type = "ObjectSealed";
++    break;
++  case StatusCode::kObjectNotSealed:
++    type = "ObjectNotSealed";
++    break;
++  case StatusCode::kObjectIsBlob:
++    type = "ObjectIsBlob";
++    break;
++  case StatusCode::kObjectTypeError:
++    type = "ObjectTypeError";
++    break;
++  case StatusCode::kMetaTreeInvalid:
++    type = "MetaTreeInvalid";
++    break;
++  case StatusCode::kMetaTreeTypeInvalid:
++    type = "MetaTreeTypeInvalid";
++    break;
++  case StatusCode::kMetaTreeTypeNotExists:
++    type = "MetaTreeTypeNotExists";
++    break;
++  case StatusCode::kMetaTreeNameInvalid:
++    type = "MetaTreeNameInvalid";
++    break;
++  case StatusCode::kMetaTreeNameNotExists:
++    type = "MetaTreeNameNotExists";
++    break;
++  case StatusCode::kMetaTreeLinkInvalid:
++    type = "MetaTreeLinkInvalid";
++    break;
++  case StatusCode::kMetaTreeSubtreeNotExists:
++    type = "MetaTreeSubtreeNotExists";
++    break;
++  case StatusCode::kVineyardServerNotReady:
++    type = "VineyardServerNotReady";
++    break;
++  case StatusCode::kArrowError:
++    type = "ArrowError";
++    break;
++  case StatusCode::kConnectionFailed:
++    type = "ConnectionFailed";
++    break;
++  case StatusCode::kConnectionError:
++    type = "ConnectionError";
++    break;
++  case StatusCode::kEtcdError:
++    type = "EtcdError";
++    break;
++  case StatusCode::kRedisError:
++    type = "RedisError";
++    break;
++  case StatusCode::kNotEnoughMemory:
++    type = "NotEnoughMemory";
++    break;
++  case StatusCode::kStreamDrained:
++    type = "StreamDrained";
++    break;
++  case StatusCode::kStreamFailed:
++    type = "StreamFailed";
++    break;
++  case StatusCode::kInvalidStreamState:
++    type = "InvalidStreamState";
++    break;
++  case StatusCode::kStreamOpened:
++    type = "StreamOpened";
++    break;
++  case StatusCode::kGlobalObjectInvalid:
++    type = "GlobalObjectInvalid";
++    break;
++  case StatusCode::kUnknownError:
++  default:
++    type = "UnknownError";
++    break;
++  }
++  return std::string(type);
++}
++
+ std::string Status::ToString() const {
+   std::string result(CodeAsString());
+   if (state_ == nullptr) {
+diff --git a/src/common/util/status.h b/src/common/util/status.h
+index ecfef684..bf12f1e5 100644
+--- a/src/common/util/status.h
++++ b/src/common/util/status.h
+@@ -722,6 +722,9 @@ class VINEYARD_MUST_USE_TYPE Status {
+   /// message text or POSIX code information.
+   std::string CodeAsString() const;
+ 
++  /// \brief Return the label name of the status code
++  std::string CodeAsLabel() const;
++
+   /// \brief Return the StatusCode value attached to this status.
+   StatusCode code() const { return ok() ? StatusCode::kOK : state_->code; }
+ 

@@ -26,7 +26,7 @@ limitations under the License.
 
 #include "boost/lexical_cast.hpp"  // IWYU pragma: keep
 
-#include "server/util/metrics.h"
+#include "common/util/metrics.h"
 
 namespace boost {
 // Makes the behaviour of lexical_cast compatible with boost::property_tree.

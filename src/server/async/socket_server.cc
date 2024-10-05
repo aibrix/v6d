@@ -28,9 +28,9 @@ limitations under the License.
 #include "common/util/callback.h"
 #include "common/util/functions.h"
 #include "common/util/json.h"
+#include "common/util/metrics.h"
 #include "common/util/protocols.h"
 #include "server/server/vineyard_server.h"
-#include "server/util/metrics.h"
 #include "server/util/remote.h"
 
 namespace vineyard {
