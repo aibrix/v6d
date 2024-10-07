@@ -56,8 +56,8 @@ Status KVCacheManager::Make(Client& client,
   VINEYARD_CHECK_OK(blob_storage->Make(
       client, blob_storage, config.tensorByte, config.cacheCapacity,
       config.layer, config.blockSize, config.syncInterval,
-      config.llmCacheSyncLock, config.llmCacheObjectName,
-      config.llmRefcntObjectName));
+      config.cacheAccessLockTimeoutMs, config.llmCacheSyncLock,
+      config.llmCacheObjectName, config.llmRefcntObjectName));
   manager = std::make_shared<KVCacheManager>(blob_storage);
   manager->config = std::make_shared<VineyardCacheConfig>(config);
   return Status::OK();

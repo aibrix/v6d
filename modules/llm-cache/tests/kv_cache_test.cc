@@ -321,7 +321,7 @@ int main(int argc, char** argv) {
             << ", block_size: " << block_size << " and use " << client_num
             << " client.";
 
-  config = VineyardCacheConfig(tensorNBytes, capacity, layer, block_size, 3,
+  config = VineyardCacheConfig(tensorNBytes, capacity, layer, block_size, 3, 10,
                                llmCacheSyncLock, llmCacheObjectName,
                                llmRefcntObjectName);
 

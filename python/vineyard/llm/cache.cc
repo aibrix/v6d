@@ -68,13 +68,15 @@ PYBIND11_MODULE(_llm_C, m) {
                                                               "KVCacheManager")
       .def(py::init([](py::object ipc_client, int tensor_nbytes,
                        int cache_capacity, int layer, int block_size,
-                       int sync_interval, std::string llm_cache_sync_lock,
+                       int sync_interval, int cache_access_lock_timeout_ms,
+                       std::string llm_cache_sync_lock,
                        std::string llm_cache_object_name,
                        std::string llm_ref_cnt_object_name)
                         -> std::shared_ptr<KVCacheManager> {
              VineyardCacheConfig config(
                  tensor_nbytes, cache_capacity, layer, block_size,
-                 sync_interval, llm_cache_sync_lock, llm_cache_object_name,
+                 sync_interval, cache_access_lock_timeout_ms,
+                 llm_cache_sync_lock, llm_cache_object_name,
                  llm_ref_cnt_object_name);
              Client& client = ipc_client.cast<Client&>();
              std::shared_ptr<KVCacheManager> manager;
@@ -85,6 +87,7 @@ PYBIND11_MODULE(_llm_C, m) {
            py::arg("ipc_client"), py::arg("tensor_nbytes") = 1024,
            py::arg("cache_capacity") = 1024, py::arg("layer") = 1,
            py::arg("block_size") = 16, py::arg("sync_interval") = 3,
+           py::arg("cache_access_lock_timeout_ms") = 10,
            py::arg("llm_cache_sync_lock") = "llmCacheSyncLock",
            py::arg("llm_cache_object_name") = "llm_cache_object",
            py::arg("llm_ref_cnt_object_name") = "llm_refcnt_object")

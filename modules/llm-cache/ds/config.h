@@ -31,18 +31,21 @@ struct KVCacheConfig {
 struct VineyardCacheConfig : public KVCacheConfig {
   int blockSize;
   int syncInterval;
+  int cacheAccessLockTimeoutMs;  // in milliseconds
   std::string llmCacheSyncLock;
   std::string llmCacheObjectName;
   std::string llmRefcntObjectName;
 
   VineyardCacheConfig(int tensorByte = 10, int cacheCapacity = 10,
                       int layer = 1, int blockSize = 5, int syncInterval = 3,
+                      int cacheAccessLockTimeoutMs = 10,
                       std::string llmCacheSyncLock = "llmCacheSyncLock",
                       std::string llmCacheObjectName = "llm_cache_object",
                       std::string llmRefcntObjectName = "llm_refcnt_object")
       : KVCacheConfig{tensorByte, cacheCapacity, layer},
         blockSize(blockSize),
         syncInterval(syncInterval),
+        cacheAccessLockTimeoutMs(cacheAccessLockTimeoutMs),
         llmCacheSyncLock(llmCacheSyncLock),
         llmCacheObjectName(llmCacheObjectName),
         llmRefcntObjectName(llmRefcntObjectName) {}

@@ -44,8 +44,9 @@ class BlobStorage : public IStorage {
   std::string llmCacheObjectName;
   std::string llmRefcntObjectName;
   std::thread syncThread;
-  std::mutex cacheAccessMutex;
+  std::timed_mutex cacheAccessMutex;
   int syncInterval;
+  int cacheAccessLockTimeoutMs;
   bool exitFlag = false;
   std::condition_variable cv;
   std::mutex exitMutex;
@@ -53,13 +54,14 @@ class BlobStorage : public IStorage {
 
  public:
   BlobStorage(Client& client, std::shared_ptr<KVCacheBuilder>& cache,
-              int syncInterval, std::string& llmCacheSyncLock,
-              std::string& llmCacheObjectName,
+              int syncInterval, int cacheAccessLockTimeoutMs,
+              std::string& llmCacheSyncLock, std::string& llmCacheObjectName,
               std::string& llmRefcntObjectName);
 
   static Status Make(Client& client, std::shared_ptr<BlobStorage>& storage,
                      int tensorNBytes = 10, int cacheCapacity = 10,
                      int layer = 1, int blockSize = 5, int syncInterval = 3,
+                     int cacheAccessLockTimeoutMs = 10,
                      std::string llmCacheSyncLock = "llmCacheSyncLock",
                      std::string llmCacheObjectName = "llm_cache_object",
                      std::string llmRefcntObjectName = "llm_refcnt_object");

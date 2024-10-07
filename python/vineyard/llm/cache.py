@@ -55,6 +55,7 @@ class VineyardCacheConfig:
         socket: str,
         block_size: int = 5,
         sync_interval: int = 3,
+        cache_access_lock_timeout_ms: int = 10,
         llm_cache_sync_lock: str = "llmCacheSyncLock",
         llm_cache_object_name: str = "llm_cache_object",
         llm_ref_cnt_object_name: str = "llm_refcnt_object",
@@ -68,6 +69,9 @@ class VineyardCacheConfig:
                 The block size of the kv cache. Defaults to 5.
             sync_interval (int, optional):
                 The sync interval of the kv cache. Defaults to 3.
+            cache_access_lock_timeout_ms (int, optional):
+                The access lock timeout (in milliseconds) of the kv cache.
+                Defaults to 10.
             llm_cache_sync_lock (str, optional):
                 The name of the kv cache sync lock. Defaults to "llmCacheSyncLock".
             llm_cache_object_name (str, optional):
@@ -80,6 +84,7 @@ class VineyardCacheConfig:
 
         self.block_size = block_size
         self.sync_interval = sync_interval
+        self.cache_access_lock_timeout_ms = cache_access_lock_timeout_ms
         self.llm_cache_sync_lock = llm_cache_sync_lock
         self.llm_cache_object_name = llm_cache_object_name
         self.llm_ref_cnt_object_name = llm_ref_cnt_object_name
@@ -93,6 +98,7 @@ class VineyardCacheConfig:
             f'ipc_client={self.ipc_client}, '
             f'block_size={self.block_size}, '
             f'sync_interval={self.sync_interval}, '
+            f'cache_access_lock_timeout_ms={self.cache_access_lock_timeout_ms}, '
             f'llm_cache_sync_lock={self.llm_cache_sync_lock}, '
             f'llm_cache_object_name={self.llm_cache_object_name}, '
             f'llm_ref_cnt_object_name={self.llm_ref_cnt_object_name})'
@@ -223,6 +229,12 @@ class KVCache:  # pylint: disable=too-many-instance-attributes
                 )
                 _argument_from_env(
                     config, 'VINEYARD_LLM_CACHE_SHARED_MEMORY', 'sync_interval', int
+                )
+                _argument_from_env(
+                    config,
+                    'VINEYARD_LLM_CACHE_SHARED_MEMORY',
+                    'cache_access_lock_timeout_ms',
+                    int,
                 )
                 cache_config = VineyardCacheConfig(**config)
             if 'VINEYARD_LLM_CACHE_FILESYSTEM' in os.environ:

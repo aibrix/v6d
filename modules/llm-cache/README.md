@@ -159,6 +159,7 @@ vineyard_cache_config = VineyardCacheConfig(
     socket="/tmp/vineyard_test.sock"
     block_size=5,
     sync_interval=3,
+    cache_access_lock_timeout_ms=10,
     llm_cache_sync_lock="llmCacheSyncLock",
     llm_cache_object_name="llm_cache_object",
     llm_ref_cnt_object_name="llm_refcnt_object",
