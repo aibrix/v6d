@@ -32,12 +32,12 @@ limitations under the License.
 #include "common/util/callback.h"
 #include "common/util/json.h"
 #include "common/util/logging.h"  // IWYU pragma: keep
+#include "common/util/metrics.h"
 #include "server/async/ipc_server.h"
 #include "server/async/rpc_server.h"
 #include "server/services/meta_service.h"
 #include "server/util/kubectl.h"
 #include "server/util/meta_tree.h"
-#include "server/util/metrics.h"
 #include "server/util/proc.h"
 #include "server/util/remote.h"
 

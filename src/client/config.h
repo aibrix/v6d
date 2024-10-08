@@ -1,4 +1,4 @@
-/** Copyright 2020-2023 Alibaba Group Holding Limited.
+/** Copyright (c) 2024, AIBrix.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,17 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef SRC_COMMON_UTIL_LOGGING_H_
-#define SRC_COMMON_UTIL_LOGGING_H_
-
-#include <glog/logging.h>
-
-namespace google {
-bool IsLoggingInitialized();
-}  // namespace google
+#ifndef SRC_CLIENT_CONFIG_H_
+#define SRC_CLIENT_CONFIG_H_
 
 namespace vineyard {
-namespace logging = google;  // NOLINT
+void init_config();
 }  // namespace vineyard
 
-#endif  // SRC_COMMON_UTIL_LOGGING_H_
+#endif  // SRC_CLIENT_CONFIG_H_

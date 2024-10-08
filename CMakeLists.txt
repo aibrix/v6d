@@ -890,7 +890,9 @@ if(BUILD_VINEYARD_CLIENT)
     target_link_libraries(vineyard_client PUBLIC ${CMAKE_DL_LIBS}
                                                  Threads::Threads
     )
-    target_link_libraries(vineyard_client PRIVATE libzstd_static)
+    target_link_libraries(vineyard_client PRIVATE ${GFLAGS_LIBRARIES}
+                                                  ${GLOG_LIBRARIES}
+                                                  libzstd_static)
 
     if(USE_CUDA)
         find_cuda()

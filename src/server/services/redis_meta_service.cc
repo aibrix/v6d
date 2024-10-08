@@ -24,7 +24,7 @@ limitations under the License.
 #include "pplx/pplxtasks.h"
 
 #include "common/util/logging.h"
-#include "server/util/metrics.h"
+#include "common/util/metrics.h"
 #include "server/util/redis_launcher.h"
 
 #define BACKOFF_RETRY_TIME 10

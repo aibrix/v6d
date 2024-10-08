@@ -191,6 +191,123 @@ std::string Status::CodeAsString() const {
   return std::string(type);
 }
 
+std::string Status::CodeAsLabel() const {
+  if (state_ == nullptr) {
+    return "OK";
+  }
+
+  const char* type;
+  switch (code()) {
+  case StatusCode::kOK:
+    type = "OK";
+    break;
+  case StatusCode::kInvalid:
+    type = "Invalid";
+    break;
+  case StatusCode::kKeyError:
+    type = "KeyError";
+    break;
+  case StatusCode::kTypeError:
+    type = "TypeError";
+    break;
+  case StatusCode::kIOError:
+    type = "IOError";
+    break;
+  case StatusCode::kEndOfFile:
+    type = "EndOfFile";
+    break;
+  case StatusCode::kNotImplemented:
+    type = "NotImplemented";
+    break;
+  case StatusCode::kAssertionFailed:
+    type = "AssertionFailed";
+    break;
+  case StatusCode::kUserInputError:
+    type = "UserInputError";
+    break;
+  case StatusCode::kObjectExists:
+    type = "ObjectExists";
+    break;
+  case StatusCode::kObjectNotExists:
+    type = "ObjectNotExists";
+    break;
+  case StatusCode::kObjectSealed:
+    type = "ObjectSealed";
+    break;
+  case StatusCode::kObjectNotSealed:
+    type = "ObjectNotSealed";
+    break;
+  case StatusCode::kObjectIsBlob:
+    type = "ObjectIsBlob";
+    break;
+  case StatusCode::kObjectTypeError:
+    type = "ObjectTypeError";
+    break;
+  case StatusCode::kMetaTreeInvalid:
+    type = "MetaTreeInvalid";
+    break;
+  case StatusCode::kMetaTreeTypeInvalid:
+    type = "MetaTreeTypeInvalid";
+    break;
+  case StatusCode::kMetaTreeTypeNotExists:
+    type = "MetaTreeTypeNotExists";
+    break;
+  case StatusCode::kMetaTreeNameInvalid:
+    type = "MetaTreeNameInvalid";
+    break;
+  case StatusCode::kMetaTreeNameNotExists:
+    type = "MetaTreeNameNotExists";
+    break;
+  case StatusCode::kMetaTreeLinkInvalid:
+    type = "MetaTreeLinkInvalid";
+    break;
+  case StatusCode::kMetaTreeSubtreeNotExists:
+    type = "MetaTreeSubtreeNotExists";
+    break;
+  case StatusCode::kVineyardServerNotReady:
+    type = "VineyardServerNotReady";
+    break;
+  case StatusCode::kArrowError:
+    type = "ArrowError";
+    break;
+  case StatusCode::kConnectionFailed:
+    type = "ConnectionFailed";
+    break;
+  case StatusCode::kConnectionError:
+    type = "ConnectionError";
+    break;
+  case StatusCode::kEtcdError:
+    type = "EtcdError";
+    break;
+  case StatusCode::kRedisError:
+    type = "RedisError";
+    break;
+  case StatusCode::kNotEnoughMemory:
+    type = "NotEnoughMemory";
+    break;
+  case StatusCode::kStreamDrained:
+    type = "StreamDrained";
+    break;
+  case StatusCode::kStreamFailed:
+    type = "StreamFailed";
+    break;
+  case StatusCode::kInvalidStreamState:
+    type = "InvalidStreamState";
+    break;
+  case StatusCode::kStreamOpened:
+    type = "StreamOpened";
+    break;
+  case StatusCode::kGlobalObjectInvalid:
+    type = "GlobalObjectInvalid";
+    break;
+  case StatusCode::kUnknownError:
+  default:
+    type = "UnknownError";
+    break;
+  }
+  return std::string(type);
+}
+
 std::string Status::ToString() const {
   std::string result(CodeAsString());
   if (state_ == nullptr) {

@@ -2,7 +2,9 @@ global:
   config_version: 3
 input:
   type: file
-  path: /var/log/vineyard/vineyard.*.log.INFO.*
+  paths:
+    - /var/log/vineyard/vineyard.*.log.INFO.*
+    - /var/log/vineyard/vineyard_client.*.log.INFO.*
   readall: false
   fail_on_missing_logfile: false
 imports:
@@ -10,7 +12,7 @@ grok_patterns:
   - 'BASE10NUM (?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\.[0-9]+)?)|(?:\.[0-9]+)))'
   - 'NUMBER (?:%{BASE10NUM})'
   - 'USERNAME [a-zA-Z0-9._-]+'
-  - 'LABEL [a-zA-Z]+'
+  - 'LABEL [a-zA-Z._-]+'
   - 'TYPENAME [a-zA-Z\:\<\>]+'
 metrics:
   - type: counter
@@ -21,6 +23,15 @@ metrics:
     labels:
       user: '{{.user}}'
       operation: '{{.op}}'
+  - type: counter
+    name: llm_kv_cache_request_total
+    help: Number of Update/BatchedUpdate or Query/BatchedQuery requests
+    match: '%{USERNAME:user} %{LABEL:op} %{LABEL:status} llm_kv_cache_request_total %{NUMBER:val}'
+    value: '{{.val}}'
+    labels:
+      user: '{{.user}}'
+      operation: '{{.op}}'
+      status: '{{.status}}'
   - type: summary
     name: data_request_duration_microseconds
     help: Data request duration microseconds.
@@ -39,10 +50,28 @@ metrics:
     labels:
       user: '{{.user}}'
       operation: '{{.op}}'
+  - type: summary
+    name: llm_kv_cache_request_duration_microseconds
+    help: LLM KV cache request duration microseconds.
+    match: '%{USERNAME:user} %{LABEL:op} llm_kv_cache_request_duration_microseconds %{NUMBER:val}'
+    value: '{{.val}}'
+    quantiles: {0.5: 0.05, 0.9: 0.01, 0.99: 0.001}
+    labels:
+      user: '{{.user}}'
+      operation: '{{.op}}'
+  - type: summary
+    name: llm_kv_cache_request_nr_tokens
+    help: Number of tokens involved in the LLM KV cache request
+    match: '%{USERNAME:user} %{LABEL:op} llm_kv_cache_request_nr_tokens %{NUMBER:val}'
+    value: '{{.val}}'
+    quantiles: {0.5: 0.05, 0.9: 0.01, 0.99: 0.001}
+    labels:
+      user: '{{.user}}'
+      operation: '{{.op}}'
   - type: gauge
     name: instances_total
     help: Number of instances in the cluster
-    match: '%{USERNAME:user}  instances_total %{NUMBER:val}'
+    match: '%{USERNAME:user} instances_total %{NUMBER:val}'
     value: '{{.val}}'
     cumulative: false
     labels:

@@ -23,10 +23,6 @@ limitations under the License.
 
 namespace vineyard {
 
-// Whether to print metrics for prometheus or not, default value is false.
-DECLARE_bool(prometheus);
-DECLARE_bool(metrics);
-
 /**
  * @brief Resolver is the base class of different kinds of
  * specification resolvers adopted in vineyard

@@ -28,6 +28,7 @@ limitations under the License.
 
 #include "common/backtrace/backtrace_on_terminate.hpp"
 #include "common/util/logging.h"  // IWYU pragma: keep
+#include "common/util/metrics.h"  // IWYU pragma: keep
 #include "common/util/version.h"
 #include "server/server/vineyard_runner.h"
 #include "server/util/spec_resolvers.h"

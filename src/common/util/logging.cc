@@ -13,17 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef SRC_COMMON_UTIL_LOGGING_H_
-#define SRC_COMMON_UTIL_LOGGING_H_
+#include "common/util/logging.h"
 
-#include <glog/logging.h>
-
+// Google glog's api does not have an external function that allows one to check
+// if glog is initialized or not. It does have an internal function - so we are
+// declaring it here. This is a hack but has been used by a bunch of others too
+// (e.g. Torch).
 namespace google {
-bool IsLoggingInitialized();
+namespace glog_internal_namespace_ {
+bool IsGoogleLoggingInitialized();
+}  // namespace glog_internal_namespace_
+
+bool IsLoggingInitialized() {
+  return google::glog_internal_namespace_::IsGoogleLoggingInitialized();
+}
 }  // namespace google
-
-namespace vineyard {
-namespace logging = google;  // NOLINT
-}  // namespace vineyard
-
-#endif  // SRC_COMMON_UTIL_LOGGING_H_

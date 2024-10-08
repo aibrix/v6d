@@ -102,12 +102,6 @@ DEFINE_bool(sync_crds, false, "Synchronize CRDs when persisting objects");
 // IO: spill and migration
 DEFINE_bool(compression, true, "Compress before migration or spilling");
 
-// metrics and prometheus
-DEFINE_bool(prometheus, false,
-            "Whether to print metrics for prometheus or not");
-DEFINE_bool(metrics, false,
-            "Alias for --prometheus, and takes precedence over --prometheus");
-
 // core dump
 DEFINE_bool(coredump, false, "Enable core dump when been aborted");
 
