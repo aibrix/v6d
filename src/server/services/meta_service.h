@@ -37,10 +37,10 @@ limitations under the License.
 #include "common/util/functions.h"
 #include "common/util/json.h"
 #include "common/util/logging.h"  // IWYU pragma: keep
+#include "common/util/metrics.h"
 #include "common/util/status.h"
 #include "server/server/vineyard_server.h"
 #include "server/util/meta_tree.h"
-#include "server/util/metrics.h"
 
 #define HEARTBEAT_TIME 10
 #define MAX_TIMEOUT_COUNT 3

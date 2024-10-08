@@ -30,8 +30,8 @@ limitations under the License.
 #include "etcd/v3/Transaction.hpp"
 
 #include "common/util/logging.h"  // IWYU pragma: keep
+#include "common/util/metrics.h"
 #include "server/util/etcd_launcher.h"
-#include "server/util/metrics.h"
 
 #define BACKOFF_RETRY_TIME 10
 

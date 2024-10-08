@@ -62,7 +62,8 @@ RUN echo "Installing gflags ..." && \
     cd build-dir && \
     cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel \
              -DBUILD_SHARED_LIBS=OFF \
-             -DBUILD_TESTING=OFF && \
+             -DBUILD_TESTING=OFF \
+             -DCMAKE_CXX_FLAGS=-fPIC && \
     make install -j`nproc` && \
     rm -rf /deps
 

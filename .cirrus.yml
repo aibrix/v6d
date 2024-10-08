@@ -105,7 +105,7 @@ macosx_arm64_wheel_task:
     cd gflags-2.2.2
     mkdir -p build-dir
     cd build-dir
-    cmake .. -DBUILD_SHARED_LIBS=OFF
+    cmake .. -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS=-fPIC
     sudo make install -j$(sysctl -n hw.ncpu)
     cd /tmp
     sudo rm -rf /tmp/install

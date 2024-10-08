@@ -722,6 +722,9 @@ class VINEYARD_MUST_USE_TYPE Status {
   /// message text or POSIX code information.
   std::string CodeAsString() const;
 
+  /// \brief Return the label name of the status code
+  std::string CodeAsLabel() const;
+
   /// \brief Return the StatusCode value attached to this status.
   StatusCode code() const { return ok() ? StatusCode::kOK : state_->code; }
 

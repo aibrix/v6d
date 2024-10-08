@@ -69,7 +69,7 @@ jobs:
           cd gflags-2.2.2
           mkdir -p build-dir
           cd build-dir
-          cmake .. -DBUILD_SHARED_LIBS=OFF
+          cmake .. -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS=-fPIC
           make install -j`nproc`
 
           echo "Installing glog ..."
@@ -346,7 +346,7 @@ jobs:
           cd gflags-2.2.2
           mkdir -p build-dir
           cd build-dir
-          cmake .. -DBUILD_SHARED_LIBS=OFF
+          cmake .. -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS=-fPIC
           make install -j`nproc`
 
           echo "Installing glog ..."

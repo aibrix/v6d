@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <sys/socket.h>
 
+#include "client/config.h"
 #include "client/ds/i_object.h"
 #include "client/ds/object_factory.h"
 #include "client/io.h"
@@ -26,7 +27,9 @@ limitations under the License.
 
 namespace vineyard {
 
-ClientBase::ClientBase() : connected_(false), vineyard_conn_(0) {}
+ClientBase::ClientBase() : connected_(false), vineyard_conn_(0) {
+  init_config();
+}
 
 Status ClientBase::GetData(const ObjectID id, json& tree,
                            const bool sync_remote, const bool wait) {
