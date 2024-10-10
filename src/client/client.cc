@@ -33,12 +33,16 @@ limitations under the License.
 #include "common/memory/cuda_ipc.h"
 #include "common/memory/fling.h"
 #include "common/util/env.h"
+#include "common/util/logging.h"
 #include "common/util/protocols.h"
 #include "common/util/status.h"
 #include "common/util/uuid.h"
 #include "common/util/version.h"
 
 namespace vineyard {
+#ifdef ENABLE_CUDA
+DECLARE_bool(shm_cuda_managed);
+#endif
 
 BasicIPCClient::BasicIPCClient() : shm_(new detail::SharedMemoryManager(-1)) {}
 
@@ -1454,7 +1458,8 @@ MmapEntry::MmapEntry(int fd, int64_t map_size, uint8_t* pointer, bool readonly,
       pointer(pointer),
       ro_pointer_(nullptr),
       rw_pointer_(nullptr),
-      length_(0) {
+      length_(0),
+      is_cuda_managed_(false) {
   // fake_mmap in malloc.h leaves a gap between memory segments, to make
   // map_size page-aligned again.
   if (realign) {
@@ -1466,13 +1471,24 @@ MmapEntry::MmapEntry(int fd, int64_t map_size, uint8_t* pointer, bool readonly,
 
 MmapEntry::~MmapEntry() {
   if (ro_pointer_) {
+#ifdef ENABLE_CUDA
+    if (FLAGS_shm_cuda_managed && is_cuda_managed_) {
+      v6d_cuda_host_unregister(ro_pointer_);
+    }
+#endif
     int r = munmap(ro_pointer_, length_);
     if (r != 0) {
       std::clog << "[error] munmap returned " << r << ", errno = " << errno
                 << ": " << strerror(errno) << std::endl;
     }
   }
+
   if (rw_pointer_) {
+#ifdef ENABLE_CUDA
+    if (FLAGS_shm_cuda_managed && is_cuda_managed_) {
+      v6d_cuda_host_unregister(rw_pointer_);
+    }
+#endif
     int r = munmap(rw_pointer_, length_);
     if (r != 0) {
       std::clog << "[error] munmap returned " << r << ", errno = " << errno
@@ -1482,15 +1498,31 @@ MmapEntry::~MmapEntry() {
   close(fd_);
 }
 
+int MmapEntry::get_mmap_flags() {
+  int mmap_flags = MAP_SHARED;
+#ifdef ENABLE_CUDA
+  if (FLAGS_shm_cuda_managed) {
+    mmap_flags |= MAP_POPULATE;
+  }
+#endif
+  return mmap_flags;
+}
+
 uint8_t* MmapEntry::map_readonly() {
   if (!ro_pointer_) {
     ro_pointer_ = reinterpret_cast<uint8_t*>(
-        mmap(NULL, length_, PROT_READ, MAP_SHARED, fd_, 0));
+        mmap(NULL, length_, PROT_READ, get_mmap_flags(), fd_, 0));
     if (ro_pointer_ == MAP_FAILED) {
       std::clog << "[error] mmap failed: errno = " << errno << ": "
                 << strerror(errno) << std::endl;
       ro_pointer_ = nullptr;
     }
+#ifdef ENABLE_CUDA
+    if (FLAGS_shm_cuda_managed && ro_pointer_) {
+      is_cuda_managed_ = v6d_cuda_host_register(ro_pointer_, length_,
+                                                true /* readonly */) == 0;
+    }
+#endif
   }
   return ro_pointer_;
 }
@@ -1498,18 +1530,38 @@ uint8_t* MmapEntry::map_readonly() {
 uint8_t* MmapEntry::map_readwrite() {
   if (!rw_pointer_) {
     rw_pointer_ = reinterpret_cast<uint8_t*>(
-        mmap(NULL, length_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
+        mmap(NULL, length_, PROT_READ | PROT_WRITE, get_mmap_flags(), fd_, 0));
     if (rw_pointer_ == MAP_FAILED) {
       std::clog << "[error] mmap failed: errno = " << errno << ": "
                 << strerror(errno) << std::endl;
       rw_pointer_ = nullptr;
     }
+#ifdef ENABLE_CUDA
+    if (FLAGS_shm_cuda_managed && rw_pointer_) {
+      is_cuda_managed_ = v6d_cuda_host_register(rw_pointer_, length_) == 0;
+    }
+#endif
   }
   return rw_pointer_;
 }
 
 SharedMemoryManager::SharedMemoryManager(int vineyard_conn)
-    : vineyard_conn_(vineyard_conn) {}
+    : vineyard_conn_(vineyard_conn) {
+  if (vineyard_conn >= 0) {
+#ifdef ENABLE_CUDA
+    if (FLAGS_shm_cuda_managed) {
+      LOG_FIRST_N(INFO, 1) << "Enabled CUDA managed shared memory";
+    } else {
+      LOG_FIRST_N(INFO, 1)
+          << "Disabled CUDA managed shared memory since shm_cuda_managed "
+             "is not set";
+    }
+#else
+    LOG_FIRST_N(INFO, 1)
+        << "Disabled CUDA managed shared memory since CUDA is not enabled";
+#endif
+  }
+}
 
 Status SharedMemoryManager::Mmap(int fd, int64_t map_size, uint8_t* pointer,
                                  bool readonly, bool realign, uint8_t** ptr) {

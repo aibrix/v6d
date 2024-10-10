@@ -28,6 +28,7 @@ limitations under the License.
 #include "client/client_base.h"
 #include "client/ds/i_object.h"
 #include "client/ds/object_meta.h"
+#include "common/memory/cuda.h"
 #include "common/memory/payload.h"
 #include "common/util/lifecycle.h"
 #include "common/util/protocols.h"
@@ -82,6 +83,10 @@ class MmapEntry {
   uint8_t *ro_pointer_, *rw_pointer_;
   /// The length of the memory-mapped file.
   size_t length_;
+  /// Whether it is cuda managed
+  bool is_cuda_managed_;
+
+  int get_mmap_flags();
 
   friend class SharedMemoryManager;
 };

@@ -29,6 +29,8 @@ namespace vineyard {
 DECLARE_bool(prometheus);
 DECLARE_bool(metrics);
 
+DEFINE_bool(shm_cuda_managed, true, "Enable CUDA managed shared memory");
+
 // glog and gflags require a program name to be passed in.
 // just use "vineyard_client" as the program name to mimic
 // command-line args.
@@ -50,7 +52,8 @@ void init_config() {
     }
 
     // use --tryfromenv flag to allow us to get flag values from env
-    std::vector<char*> args{PROG_NAME, "--tryfromenv=metrics,prometheus"};
+    std::vector<char*> args{PROG_NAME,
+                            "--tryfromenv=metrics,prometheus,shm_cuda_managed"};
     int argc = args.size();
     char** argv = args.data();
 
