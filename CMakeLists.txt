@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.3)
 
 set(VINEYARD_MAJOR_VERSION 0)
-set(VINEYARD_MINOR_VERSION 23)
+set(VINEYARD_MINOR_VERSION 24)
 set(VINEYARD_PATCH_VERSION 2)
 set(VINEYARD_VERSION ${VINEYARD_MAJOR_VERSION}.${VINEYARD_MINOR_VERSION}.${VINEYARD_PATCH_VERSION})
 
@@ -1005,7 +1005,9 @@ if(BUILD_VINEYARD_PYTHON_BINDINGS)
         DEPENDS _C vineyard_internal_registry
         COMMENT "Copying python extensions."
         VERBATIM)
-    set_target_properties(_C PROPERTIES LINK_FLAGS "-Wl,--version-script=${LIBFABRIC_VERSION_SCRIPT}")
+    if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+        set_target_properties(_C PROPERTIES LINK_FLAGS "-Wl,--version-script=${LIBFABRIC_VERSION_SCRIPT}")
+    endif()
 endif()
 
 if(BUILD_VINEYARD_PYTHON_BINDINGS AND BUILD_VINEYARD_LLM_CACHE)
@@ -1021,7 +1023,9 @@ if(BUILD_VINEYARD_PYTHON_BINDINGS AND BUILD_VINEYARD_LLM_CACHE)
         DEPENDS _llm_C
         COMMENT "Copying llm kv cache python extensions."
         VERBATIM)
-    set_target_properties(_llm_C PROPERTIES LINK_FLAGS "-Wl,--version-script=${LIBFABRIC_VERSION_SCRIPT}")
+    if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+        set_target_properties(_llm_C PROPERTIES LINK_FLAGS "-Wl,--version-script=${LIBFABRIC_VERSION_SCRIPT}")
+    endif()
     add_dependencies(vineyard_llm_python vineyard_client_python)
 endif()
 

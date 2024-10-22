@@ -48,7 +48,7 @@ var cmdLong = util.LongDesc(`
 
 var cmd = &cobra.Command{
 	Use:     "vineyardctl [command]",
-	Version: "v0.23.2",
+	Version: "v0.24.2",
 	Short:   "vineyardctl is the command-line tool for interact with the Vineyard Operator.",
 	Long:    cmdLong,
 }
@@ -63,6 +63,11 @@ func init() {
 
 	flags.ApplyGlobalFlags(cmd)
 
+	if cmd.Flags().Lookup("log-flush-frequency") != nil {
+		if err := cmd.Flags().MarkHidden("log-flush-frequency"); err != nil {
+			log.Fatal(err, "Failed to mark hidden flag")
+		}
+	}
 	// disable completion command
 	cmd.CompletionOptions.DisableDefaultCmd = true
 
