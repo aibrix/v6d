@@ -42,7 +42,15 @@ def _argument_from_env(
     envname = f'{envprefix}_{name.upper()}'
     if envname in os.environ:
         value = os.environ.get(envname)
-        if dtype:
+        if dtype and issubclass(dtype, FilesystemType):
+            value = str(value)
+            if value.upper() == 'LOCAL':
+                value = FilesystemType.LOCAL
+            elif value.upper() == 'VINEYARD':
+                value = FilesystemType.VINEYARD
+            else:
+                raise ValueError(f'Invalid filesystem type: {value}')
+        elif dtype:
             value = dtype(value)
         kwargs[name] = value
 
@@ -116,7 +124,7 @@ class FileCacheConfig:
         filesystem_type: FilesystemType = FilesystemType.LOCAL,
         gc_interval: int = 30 * 60,
         ttl: int = 30 * 60,
-        enable_global_gc: bool = False,
+        enable_global_gc: bool = True,
         global_gc_interval: int = 3 * 60 * 60,
         global_ttl: int = 3 * 60 * 60,
         socket: str = "",
@@ -144,7 +152,7 @@ class FileCacheConfig:
                 The time to live of the kv state files (seconds).
                 Defaults to 30 * 60 seconds.
             enable_global_gc (bool):
-                Enable the global gc or not. Defaults to False.
+                Enable the global gc or not. Defaults to True.
             global_gc_interval (int):
                 The interval of the global gc (seconds).
                 Defaults to 3 * 60 * 60 seconds.
@@ -166,8 +174,17 @@ class FileCacheConfig:
 
         if filesystem_type == FilesystemType.VINEYARD:
             self.ipc_client = vineyard.connect(socket).ipc_client
-            rpc_host = rpc_endpoint.split(":")[0]
-            rpc_port = rpc_endpoint.split(":")[1]
+
+            rpc_endpoint_splits = rpc_endpoint.split(":")
+            if len(rpc_endpoint_splits) != 2:
+                raise ValueError(
+                    f"Invalid rpc_endpoint: {rpc_endpoint}, "
+                    f"should be in the format of host:port"
+                )
+
+            rpc_host = rpc_endpoint_splits[0]
+            rpc_port = rpc_endpoint_splits[1]
+            # Must have RPC client
             self.rpc_client = vineyard.connect(
                 host=rpc_host, port=rpc_port, rdma_endpoint=rdma_endpoint
             ).rpc_client
@@ -245,8 +262,34 @@ class KVCache:  # pylint: disable=too-many-instance-attributes
                 _argument_from_env(
                     config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'hash_chunk_size', int
                 )
+                _argument_from_env(config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'root', str)
                 _argument_from_env(
-                    config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'root', dtype=str
+                    config,
+                    'VINEYARD_LLM_CACHE_FILESYSTEM',
+                    'filesystem_type',
+                    FilesystemType,
+                )
+                _argument_from_env(
+                    config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'gc_interval', int
+                )
+                _argument_from_env(config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'ttl', int)
+                _argument_from_env(
+                    config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'enable_global_gc', bool
+                )
+                _argument_from_env(
+                    config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'global_gc_interval', int
+                )
+                _argument_from_env(
+                    config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'global_ttl', int
+                )
+                _argument_from_env(
+                    config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'socket', str
+                )
+                _argument_from_env(
+                    config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'rpc_endpoint', str
+                )
+                _argument_from_env(
+                    config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'rdma_endpoint', str
                 )
                 cache_config = FileCacheConfig(**config)
 

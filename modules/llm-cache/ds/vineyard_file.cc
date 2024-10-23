@@ -278,10 +278,8 @@ std::shared_ptr<Object> VineyardFileBuilder::SealAndPersist(
     VINEYARD_DISCARD(writer_->Shrink(ipc_client, writer_->size()));
     VINEYARD_CHECK_OK(writer_->Seal(ipc_client, object));
     blob_meta = object->meta();
-    VINEYARD_CHECK_OK(ipc_client.Persist(blob_meta.GetId()));
   } else {
     VINEYARD_CHECK_OK(rpc_client.CreateRemoteBlob(remote_writer_, blob_meta));
-    VINEYARD_CHECK_OK(rpc_client.Persist(blob_meta.GetId()));
   }
   vineyardFile->meta_.AddMember("buffer", blob_meta);
   vineyardFile->meta_.AddKeyValue("path", path_);
