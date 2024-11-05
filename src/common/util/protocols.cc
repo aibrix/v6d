@@ -117,6 +117,8 @@ const std::string command_t::GET_DATA_REQUEST = "get_data_request";
 const std::string command_t::GET_DATA_REPLY = "get_data_reply";
 const std::string command_t::LIST_DATA_REQUEST = "list_data_request";
 const std::string command_t::LIST_DATA_REPLY = "list_data_reply";
+const std::string command_t::LIST_BY_REQUEST = "list_by_request";
+const std::string command_t::LIST_BY_REPLY = "list_by_reply";
 const std::string command_t::DELETE_DATA_REQUEST = "del_data_request";
 const std::string command_t::DELETE_DATA_REPLY = "del_data_reply";
 const std::string command_t::EXISTS_REQUEST = "exists_request";
@@ -1723,20 +1725,26 @@ Status ReadDropStreamReply(const json& root) {
 }
 
 void WritePutNameRequest(const ObjectID object_id, const std::string& name,
-                         std::string& msg) {
+                         const bool unique, std::string& msg) {
   json root;
   root["type"] = command_t::PUT_NAME_REQUEST;
   root["object_id"] = object_id;
   root["name"] = name;
+  root["unique"] = unique;
 
   encode_msg(root, msg);
 }
 
 Status ReadPutNameRequest(const json& root, ObjectID& object_id,
-                          std::string& name) {
+                          std::string& name, bool& unique) {
   CHECK_IPC_ERROR(root, command_t::PUT_NAME_REQUEST);
   object_id = root["object_id"].get<ObjectID>();
   name = root["name"].get_ref<std::string const&>();
+  if (root.contains("unique")) {
+    unique = root["unique"].get<bool>();
+  } else {
+    unique = false;
+  }
   return Status::OK();
 }
 
@@ -1817,6 +1825,44 @@ Status ReadListNameReply(const json& root,
                          std::map<std::string, ObjectID>& names) {
   CHECK_IPC_ERROR(root, command_t::LIST_NAME_REPLY);
   names = root.value("names", std::map<std::string, ObjectID>{});
+  return Status::OK();
+}
+
+void WriteListByRequest(std::string const& field, std::string const& pattern,
+                        bool const regex, size_t const limit,
+                        std::string& msg) {
+  json root;
+  root["type"] = command_t::LIST_BY_REQUEST;
+  root["field"] = field;
+  root["pattern"] = pattern;
+  root["regex"] = regex;
+  root["limit"] = limit;
+
+  encode_msg(root, msg);
+}
+
+Status ReadListByRequest(const json& root, std::string& field,
+                         std::string& pattern, bool& regex, size_t& limit) {
+  CHECK_IPC_ERROR(root, command_t::LIST_BY_REQUEST);
+  field = root["field"].get_ref<std::string const&>();
+  pattern = root["pattern"].get_ref<std::string const&>();
+  regex = root.value("regex", false);
+  limit = root["limit"].get<size_t>();
+  return Status::OK();
+}
+
+void WriteListByReply(std::vector<ObjectID> const& ids, std::string& msg) {
+  json root;
+  root["type"] = command_t::LIST_BY_REPLY;
+  root["size"] = ids.size();
+  root["ids"] = ids;
+
+  encode_msg(root, msg);
+}
+
+Status ReadListByReply(const json& root, std::vector<ObjectID>& ids) {
+  CHECK_IPC_ERROR(root, command_t::LIST_BY_REPLY);
+  ids = root.value("ids", std::vector<ObjectID>{});
   return Status::OK();
 }
 

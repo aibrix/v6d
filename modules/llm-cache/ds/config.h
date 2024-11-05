@@ -85,6 +85,30 @@ struct FileCacheConfig : public KVCacheConfig {
   }
 };
 
+struct AIBrixCacheConfig : public KVCacheConfig {
+  int chunkSize;
+  std::string cacheNameSpace;
+  int localSyncInterval;  // in seconds
+  bool enbaleGlobalGC;
+  int globalGCInterval;  // in seconds
+  int globalTTL;         // in seconds
+
+  // Default local sync interval is 3 minutes and default global gc interval is
+  // 10 minutes.
+  AIBrixCacheConfig(int tensorByte = 10, int cacheCapacity = 10, int layer = 1,
+                    int chunkSize = 4, std::string cacheNameSpace = "aibrix",
+                    int localSyncInterval = 3 * 60, bool enbaleGlobalGC = true,
+                    int globalGCInterval = 10 * 60, int globalTTL = 8 * 60)
+      : KVCacheConfig{tensorByte, cacheCapacity, layer} {
+    this->chunkSize = chunkSize;
+    this->cacheNameSpace = cacheNameSpace;
+    this->localSyncInterval = localSyncInterval;
+    this->enbaleGlobalGC = enbaleGlobalGC;
+    this->globalGCInterval = globalGCInterval;
+    this->globalTTL = globalTTL;
+  }
+};
+
 }  // namespace vineyard
 
 #endif  // MODULES_LLM_CACHE_DS_CONFIG_H_

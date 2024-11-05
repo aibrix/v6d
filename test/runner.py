@@ -931,6 +931,20 @@ def run_llm_tests(meta, allocator, endpoints):
             cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'),
         )
 
+        subprocess.check_call(
+            [
+                './build/bin/aibrix_kv_cache_test',
+                '--client-num',
+                '4',
+                '--vineyard-ipc-sockets',
+                vineyard_ipc_socket_1,
+                vineyard_ipc_socket_2,
+                vineyard_ipc_socket_1,
+                vineyard_ipc_socket_2,
+            ],
+            cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'),
+        )
+
 
 def run_llm_python_tests(meta, allocator, endpoints, test_args):
     meta_prefix = 'vineyard_test_%s' % time.time()

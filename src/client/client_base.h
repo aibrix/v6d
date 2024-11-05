@@ -239,6 +239,24 @@ class ClientBase {
                    size_t const limit, std::map<std::string, ObjectID>& names);
 
   /**
+   * @brief List by field in vineyard, using the given patterns.
+   *
+   * @param field The field that will be used to match against
+   * @param pattern The pattern string that will be used
+   * @param regex Whether the pattern is a regular expression pattern. Default
+   * is false. When `regex` is false, the pattern will be treated as a glob
+   * pattern.
+   * @param limit The number limit for how many objects will be returned at
+   * most.
+   * @param ids corresponding object ids.
+   *
+   * @return Status that indicates whether the list action has succeeded.
+   */
+  Status ListBy(std::string const& field, std::string const& pattern,
+                bool const regex, size_t const limit,
+                std::vector<ObjectID>& ids);
+
+  /**
    * @brief Allocate a stream on vineyard. The metadata of parameter `id` must
    * has already been created on vineyard.
    *
@@ -400,10 +418,12 @@ class ClientBase {
    * @param id The ID of the object.
    * @param name The user-specific name that will be associated with the given
    * object.
+   * @param unique Fail if the given name has already been registered
    *
    * @return Status that indicates whether the request has succeeded.
    */
-  Status PutName(const ObjectID id, std::string const& name);
+  Status PutName(const ObjectID id, std::string const& name,
+                 const bool unique = false);
 
   /**
    * @brief Retrieve the object ID by associated name.

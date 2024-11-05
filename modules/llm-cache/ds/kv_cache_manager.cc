@@ -26,6 +26,7 @@ limitations under the License.
 #include "common/util/status.h"
 #include "llm-cache/ds/kv_cache.h"
 #include "llm-cache/ds/kv_cache_manager.h"
+#include "llm-cache/storage/aibrix_blob_storage.h"
 #include "llm-cache/storage/blob_storage.h"
 #include "llm-cache/storage/local_file_storage.h"
 #include "llm-cache/storage/vineyard_file_storage.h"
@@ -141,6 +142,30 @@ Status KVCacheManager::Make(RPCClient& rpc_client, Client& ipc_client,
   manager = std::make_shared<KVCacheManager>(file_storage);
   RETURN_ON_ERROR(file_storage->Init());
   manager->config = std::make_shared<FileCacheConfig>(config);
+  return Status::OK();
+}
+
+Status KVCacheManager::Make(RPCClient& rpc_client, Client& ipc_client,
+                            std::shared_ptr<KVCacheManager>& manager,
+                            AIBrixCacheConfig& config) {
+  if (config.tensorByte <= 0 || config.cacheCapacity <= 0 ||
+      config.layer <= 0) {
+    return Status::Invalid("Invalid tensor byte, cache capacity or layer.");
+  }
+
+  if (config.chunkSize <= 0) {
+    return Status::Invalid("Invalid chunk size");
+  }
+
+  std::shared_ptr<AIBrixBlobStorage> storage =
+      std::make_shared<AIBrixBlobStorage>(
+          rpc_client, ipc_client, config.tensorByte, config.cacheCapacity,
+          config.layer, config.chunkSize, config.cacheNameSpace,
+          config.localSyncInterval, config.enbaleGlobalGC,
+          config.globalGCInterval, config.globalTTL);
+  manager = std::make_shared<KVCacheManager>(storage);
+  RETURN_ON_ERROR(storage->Init());
+  manager->config = std::make_shared<AIBrixCacheConfig>(config);
   return Status::OK();
 }
 
