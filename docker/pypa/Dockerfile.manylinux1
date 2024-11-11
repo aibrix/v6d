@@ -26,7 +26,7 @@ RUN mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backu
         curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-altarch-7.repo; \
     fi && \
     yum -y update && \
-    yum -y install devtoolset-10-libatomic-devel libtool
+    yum -y install devtoolset-10-libatomic-devel libtool openmpi-devel wget
 
 # target: ghcr.io/aibrix/v6d/vineyard-manylinux2014:20240218_$PLATFORM
 
@@ -66,6 +66,35 @@ RUN echo "Installing gflags ..." && \
              -DCMAKE_CXX_FLAGS=-fPIC && \
     make install -j`nproc` && \
     rm -rf /deps
+
+# Install boost
+RUN echo "Installing boost ..." && \
+    cd /tmp && \
+    wget -q https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.gz && \
+    tar zxf boost_1_75_0.tar.gz && \
+    cd boost_1_75_0 && \
+    ./bootstrap.sh && \
+    ./b2 install -j`nproc` link=static runtime-link=static variant=release threading=multi \
+        --with-atomic \
+        --with-chrono \
+        --with-date_time \
+        --with-filesystem \
+        --with-random \
+        --with-system \
+        --with-thread && \
+    cd /tmp && \
+    rm -rf boost_1_75_0.tar.gz boost_1_75_0
+
+# Install openssl
+RUN echo "Installing openssl ..." && \
+    cd /tmp && \
+    wget -q --no-check-certificate https://www.openssl.org/source/openssl-1.1.1j.tar.gz && \
+    tar zxf openssl-1.1.1j.tar.gz && \
+    cd openssl-1.1.1j && \
+    ./config -no-shared -no-tests && \
+    make -j`nproc` && make install -j`nproc` || true && \
+    cd /tmp && \
+    rm -rf openssl-1.1.1j.tar.gz openssl-1.1.1j
 
 RUN echo "Installing apache-arrow ..." && \
     mkdir -p /deps && \
