@@ -16,6 +16,7 @@ limitations under the License.
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <exception>
 #include <iomanip>
 #include <map>
 #include <memory>
@@ -49,9 +50,10 @@ AIBrixBlobStorage::AIBrixBlobStorage(
       global_gc_enabled_(global_gc_enabled),
       global_gc_interval_s_(std::chrono::seconds(global_gc_interval_s)),
       global_ttl_s_(std::chrono::seconds(global_ttl_s)),
-      ghost_fifo_(capacity_),
-      small_fifo_(capacity_ * kSmallFifoCapacityRatio),
-      main_fifo_(capacity_ - capacity_ * kSmallFifoCapacityRatio,
+      ghost_fifo_(capacity_ / chunk_size),
+      small_fifo_(capacity_ / chunk_size * kSmallFifoCapacityRatio),
+      main_fifo_(capacity_ / chunk_size -
+                     capacity_ / chunk_size * kSmallFifoCapacityRatio,
                  kMinEviction) {
   kv_cache_ns_ = std::regex_replace(kv_cache_ns_, std::regex("/"), "_");
   kv_cache_ns_ = std::regex_replace(kv_cache_ns_ + "_", std::regex("_+"), "_");
@@ -221,32 +223,34 @@ Status AIBrixBlobStorage::GetTokenChunkHashes(
   return Status::OK();
 }
 
-#define DEFINE_TASK_FN(FN, OP, CB)                                        \
-  auto FN = [this, &prefix, &tokens, &kv_tensors, cb = CB](               \
-                size_t i,                                                 \
-                std::shared_ptr<KVCacheChunkBuilder> builder) -> Status { \
-    auto chunk_size = this->chunk_size_;                                  \
-    if (builder == nullptr) {                                             \
-      return Status::OK();                                                \
-    }                                                                     \
-                                                                          \
-    std::vector<int> my_prefix(prefix.begin(), prefix.end());             \
-    if (i > 0) {                                                          \
-      my_prefix.insert(my_prefix.end(), tokens.begin(),                   \
-                       tokens.begin() + i * chunk_size);                  \
-    }                                                                     \
-    std::vector<int> my_tokens(tokens.begin() + i * chunk_size,           \
-                               tokens.begin() + (i + 1) * chunk_size);    \
-                                                                          \
-    std::vector<std::vector<std::pair<LLMKV, LLMKV>>> my_kv_tensors(      \
-        kv_tensors.begin() + i * chunk_size,                              \
-        kv_tensors.begin() + (i + 1) * chunk_size);                       \
-                                                                          \
-    auto status = builder->OP(my_prefix, my_tokens, my_kv_tensors);       \
-    if (status.ok()) {                                                    \
-      cb(i, my_kv_tensors);                                               \
-    }                                                                     \
-    return status;                                                        \
+#define DEFINE_TASK_FN(FN, OP, CB)                                          \
+  auto FN = [this, &prefix, &tokens, &kv_tensors, cb = CB](                 \
+                size_t i,                                                   \
+                std::shared_ptr<KVCacheChunkBuilder> builder) -> Status {   \
+    auto chunk_size = this->chunk_size_;                                    \
+    if (builder == nullptr) {                                               \
+      return Status::OK();                                                  \
+    }                                                                       \
+                                                                            \
+    std::vector<int> my_prefix(prefix.begin(), prefix.end());               \
+    if (i > 0) {                                                            \
+      my_prefix.insert(my_prefix.end(), tokens.begin(),                     \
+                       tokens.begin() + i * chunk_size);                    \
+    }                                                                       \
+    std::vector<int> my_tokens(tokens.begin() + i * chunk_size,             \
+                               tokens.begin() + (i + 1) * chunk_size);      \
+                                                                            \
+    std::vector<std::vector<std::pair<LLMKV, LLMKV>>> my_kv_tensors(        \
+        kv_tensors.begin() + i * chunk_size,                                \
+        kv_tensors.begin() + (i + 1) * chunk_size);                         \
+                                                                            \
+    try {                                                                   \
+      auto status = builder->OP(my_prefix, my_tokens, my_kv_tensors);       \
+      if (status.ok()) {                                                    \
+        cb(i, my_kv_tensors);                                               \
+      }                                                                     \
+      return status;                                                        \
+    } catch (const std::exception& e) { return Status::IOError(e.what()); } \
   }
 
 #define WAIT_TASK_RESULTS(TIDS, COUNTER, FIRST_ERROR, OBJ_NAMES) \
@@ -864,12 +868,16 @@ Status AIBrixBlobStorage::GlobalGCFunc() {
           return;                                                              \
         }                                                                      \
         LOG(INFO) << #NAME " started";                                         \
-        Status status = self->NAME##Func();                                    \
-        if (!status.ok()) {                                                    \
-          LOG(ERROR) << #NAME " failed: " << status.ToString();                \
-          /* Not a fatal error and wait for next time */                       \
-        } else {                                                               \
-          LOG(INFO) << #NAME " completed";                                     \
+        try {                                                                  \
+          Status status = self->NAME##Func();                                  \
+          if (!status.ok()) {                                                  \
+            LOG(ERROR) << #NAME " failed: " << status.ToString();              \
+            /* Not a fatal error and wait for next time */                     \
+          } else {                                                             \
+            LOG(INFO) << #NAME " completed";                                   \
+          }                                                                    \
+        } catch (const std::exception& e) {                                    \
+          LOG(ERROR) << #NAME " failed: " << e.what();                         \
         }                                                                      \
         last_time = std::chrono::duration_cast<std::chrono::seconds>(          \
                         std::chrono::system_clock::now().time_since_epoch())   \
