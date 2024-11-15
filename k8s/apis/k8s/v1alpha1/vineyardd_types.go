@@ -103,22 +103,15 @@ type VolumeConfig struct {
 
 // SchedulingConfig holds all configurations about scheduling
 type SchedulingConfig struct {
-	// NodeName is a request to schedule this pod onto a specific node. If it is non-empty,
+	// GPUType is a request to schedule this pod onto a specific GPU node. If it is non-empty,
 	// the scheduler simply schedules this pod onto that node, assuming that it fits resource
 	// requirements.
 	// +optional
-	NodeName string `json:"nodeName,omitempty"`
-	// NodeSelector is a selector which must be true for the pod to fit on a node.
-	// Selector which must match a node's labels for the pod to be scheduled on that node.
-	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
-	// +optional
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	GPUType string `json:"gpuType,omitempty"`
 	// If specified, the pod's scheduling constraints
+	// value should be the model name, model.aibrix.ai/name: deepseek-coder-7b-instruct
 	// +optional
-	Affinity *corev1.Affinity `json:"affinity,omitempty"`
-	// If specified, the pod's tolerations.
-	// +optional
-	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	AffinityWorkload string `json:"affinityWorkload,omitempty"`
 }
 
 // VineyardConfig holds all configuration about vineyard container
