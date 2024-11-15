@@ -101,6 +101,26 @@ type VolumeConfig struct {
 	MountPath string `json:"mountPath,omitempty"`
 }
 
+// SchedulingConfig holds all configurations about scheduling
+type SchedulingConfig struct {
+	// NodeName is a request to schedule this pod onto a specific node. If it is non-empty,
+	// the scheduler simply schedules this pod onto that node, assuming that it fits resource
+	// requirements.
+	// +optional
+	NodeName string `json:"nodeName,omitempty"`
+	// NodeSelector is a selector which must be true for the pod to fit on a node.
+	// Selector which must match a node's labels for the pod to be scheduled on that node.
+	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// If specified, the pod's scheduling constraints
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// If specified, the pod's tolerations.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+}
+
 // VineyardConfig holds all configuration about vineyard container
 type VineyardConfig struct {
 	// represent the vineyardd's image
@@ -227,6 +247,11 @@ type VineyarddSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:={pvcName: "", mountPath: ""}
 	Volume VolumeConfig `json:"volume,omitempty"`
+
+	// the configuration of scheduling
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:={}
+	Scheduler SchedulingConfig `json:"scheduler,omitempty"`
 
 	// SecurityContext holds the security context settings for the vineyardd container.
 	// +kubebuilder:validation:Optional
