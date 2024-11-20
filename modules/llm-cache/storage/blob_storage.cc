@@ -14,6 +14,7 @@ limitations under the License.
 */
 
 #include <cstdlib>
+#include <exception>
 #include <memory>
 #include <set>
 #include <string>
@@ -593,12 +594,16 @@ void BlobStorage::SyncThreadFunc(BlobStorage* storage) {
       std::string actualKey;
 
       AcquireServerLock(storage->client, storage->llmCacheSyncLock, actualKey);
-      Status status = storage->Sync();
-      if (!status.ok()) {
-        while (!storage->AfterSyncFailed().ok()) {
-          VLOG(100) << "Recover from sync failed failed. Retry later.";
-          sleep(1);
+      try {
+        Status status = storage->Sync();
+        if (!status.ok()) {
+          while (!storage->AfterSyncFailed().ok()) {
+            VLOG(100) << "Recover from sync failed failed. Retry later.";
+            sleep(1);
+          }
         }
+      } catch (const std::exception& e) {
+        VLOG(100) << "Sync failed. Retry later. Exception: " << e.what();
       }
 
       ReleaseServerLock(storage->client, actualKey);
