@@ -63,7 +63,7 @@ void KVCache::GetCurrentBlockIDSet(std::set<ObjectID>& objectIDSet) {
   std::set<void*> subTreeData = rootTree->GetSubTreeDataSet();
   for (auto iter = subTreeData.begin(); iter != subTreeData.end(); ++iter) {
     TreeData* treeData = reinterpret_cast<TreeData*>(*iter);
-    if (!treeData->isPtr) {
+    if (treeData && !treeData->isPtr) {
       objectIDSet.insert(treeData->builderObjectID);
     }
   }
@@ -158,6 +158,7 @@ Status KVCacheBuilder::Update(
 
   KVCacheBlockBuilder* kvCacheBlockBuilder;
   TreeData* treeData = reinterpret_cast<TreeData*>(nodeData->treeData->data);
+  RETURN_ON_ASSERT(treeData != nullptr, "Update llm cache failed.");
   if (treeData->isPtr) {
     kvCacheBlockBuilder =
         reinterpret_cast<KVCacheBlockBuilder*>(treeData->kvCacheBlockBuilder);
@@ -245,6 +246,7 @@ Status KVCacheBuilder::Query(const std::vector<int>& tokenList, int token,
   int offset = data->offset;
 
   TreeData* treeData = reinterpret_cast<TreeData*>(nodeData->treeData->data);
+  RETURN_ON_ASSERT(treeData != nullptr, "Query llm cache failed.");
   KVCacheBlockBuilder* kvCacheBlockBuilder;
   if (treeData->isPtr) {
     kvCacheBlockBuilder =
@@ -279,6 +281,9 @@ Status KVCacheBuilder::Query(
   std::unordered_set<ObjectID> visited;
   for (const auto& nodeData : nodeDataList) {
     TreeData* treeData = reinterpret_cast<TreeData*>(nodeData->treeData->data);
+    if (!treeData) {
+      continue;
+    }
     if (!treeData->isPtr && visited.count(treeData->builderObjectID) == 0) {
       blockObjectIDs.push_back(treeData->builderObjectID);
       visited.insert(treeData->builderObjectID);
@@ -295,10 +300,16 @@ Status KVCacheBuilder::Query(
   size_t idx = 0;
   for (const auto& nodeData : nodeDataList) {
     OffsetData* data = reinterpret_cast<OffsetData*>(nodeData->nodeData->data);
+    if (!data) {
+      continue;
+    }
     int offset = data->offset;
     offsets.push_back(offset);
 
     TreeData* treeData = reinterpret_cast<TreeData*>(nodeData->treeData->data);
+    if (!treeData) {
+      continue;
+    }
     KVCacheBlockBuilder* kvCacheBlockBuilder;
     if (treeData->isPtr) {
       kvCacheBlockBuilder =
@@ -325,6 +336,9 @@ Status KVCacheBuilder::Query(
 void KVCacheBuilder::Delete(std::shared_ptr<NodeData> evictedNodeData) {
   TreeData* treeData =
       reinterpret_cast<TreeData*>(evictedNodeData->treeData->data);
+  if (!treeData) {
+    return;
+  }
   KVCacheBlockBuilder* kvCacheBlockBuilder;
   if (treeData->isPtr) {
     kvCacheBlockBuilder =
@@ -427,7 +441,7 @@ void KVCacheBuilder::GetCurrentBlockIDSet(std::set<ObjectID>& objectIDSet) {
   std::set<void*> subTreeData = rootTree->GetSubTreeDataSet();
   for (auto iter = subTreeData.begin(); iter != subTreeData.end(); ++iter) {
     TreeData* treeData = reinterpret_cast<TreeData*>(*iter);
-    if (!treeData->isPtr) {
+    if (treeData && !treeData->isPtr) {
       objectIDSet.insert(treeData->builderObjectID);
     }
   }
@@ -452,7 +466,7 @@ std::shared_ptr<Object> KVCacheBuilder::_Seal(Client& client) {
   for (auto iter = subTreeDataSet.begin(); iter != subTreeDataSet.end();
        ++iter) {
     TreeData* treeData = reinterpret_cast<TreeData*>(*iter);
-    if (!treeData->isPtr) {
+    if (!treeData || !treeData->isPtr) {
       continue;
     }
 
@@ -485,6 +499,9 @@ KVCacheBuilder::~KVCacheBuilder() {
   for (auto iter = subTreeDataSet.begin(); iter != subTreeDataSet.end();
        ++iter) {
     TreeData* treeData = reinterpret_cast<TreeData*>(*iter);
+    if (!treeData) {
+      continue;
+    }
     if (treeData->isPtr == true && treeData->kvCacheBlockBuilder != nullptr) {
       delete reinterpret_cast<KVCacheBlockBuilder*>(
           treeData->kvCacheBlockBuilder);
@@ -504,6 +521,9 @@ void KVCacheBuilder::Close() {
   for (auto iter = subTreeDataSet.begin(); iter != subTreeDataSet.end();
        ++iter) {
     TreeData* treeData = reinterpret_cast<TreeData*>(*iter);
+    if (!treeData) {
+      continue;
+    }
     if (treeData->isPtr && treeData->kvCacheBlockBuilder != nullptr) {
       std::shared_ptr<Object> object =
           reinterpret_cast<KVCacheBlockBuilder*>(treeData->kvCacheBlockBuilder)
