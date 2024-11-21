@@ -55,9 +55,14 @@ Status ClientBase::GetData(const std::vector<ObjectID>& ids,
   RETURN_ON_ERROR(doRead(message_in));
   std::unordered_map<ObjectID, json> meta_trees;
   RETURN_ON_ERROR(ReadGetDataReply(message_in, meta_trees));
+  if (meta_trees.empty()) {
+    return Status::OK();
+  }
   trees.reserve(ids.size());
   for (auto const& id : ids) {
-    trees.emplace_back(meta_trees.at(id));
+    if (meta_trees.count(id) > 0) {
+      trees.emplace_back(meta_trees.at(id));
+    }
   }
   return Status::OK();
 }
@@ -252,6 +257,19 @@ Status ClientBase::ListNames(std::string const& pattern, bool const regex,
   return Status::OK();
 }
 
+Status ClientBase::ListBy(std::string const& field, std::string const& pattern,
+                          bool const regex, size_t const limit,
+                          std::vector<ObjectID>& ids) {
+  ENSURE_CONNECTED(this);
+  std::string message_out;
+  WriteListByRequest(field, pattern, regex, limit, message_out);
+  RETURN_ON_ERROR(doWrite(message_out));
+  json message_in;
+  RETURN_ON_ERROR(doRead(message_in));
+  RETURN_ON_ERROR(ReadListByReply(message_in, ids));
+  return Status::OK();
+}
+
 Status ClientBase::CreateStream(const ObjectID& id) {
   ENSURE_CONNECTED(this);
   std::string message_out;
@@ -394,10 +412,11 @@ Status ClientBase::ShallowCopy(const ObjectID id, json const& extra_metadata,
   return Status::OK();
 }
 
-Status ClientBase::PutName(const ObjectID id, std::string const& name) {
+Status ClientBase::PutName(const ObjectID id, std::string const& name,
+                           const bool unique) {
   ENSURE_CONNECTED(this);
   std::string message_out;
-  WritePutNameRequest(id, name, message_out);
+  WritePutNameRequest(id, name, unique, message_out);
   RETURN_ON_ERROR(doWrite(message_out));
   json message_in;
   RETURN_ON_ERROR(doRead(message_in));

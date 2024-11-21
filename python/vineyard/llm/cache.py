@@ -204,12 +204,80 @@ class FileCacheConfig:
         )
 
 
+class AIBrixCacheConfig:
+    """AIBrixCacheConfig is a class to configure the AIBrix llm kv cache."""
+
+    def __init__(
+        self,
+        chunk_size: int = 16,
+        kv_cache_ns: str = "aibrix",
+        local_sync_interval_s: int = 3 * 60,
+        enable_global_gc: bool = True,
+        global_gc_interval_s: int = 10 * 60,
+        global_ttl_s: int = 8 * 60,
+        socket: str = "",
+        rpc_endpoint: str = "",
+        rdma_endpoint: str = "",
+    ):
+        """Create an AIBrix cache config.
+
+        Args:
+            chunk_size (int):
+                Divide the token list into batches, each batch
+                contains chunk_size tokens. Defaults to 16.
+            kv_cache_ns (str):
+                The namespace of kv cache objects.
+                Defaults to "aibrix".
+            local_sync_interval_s (int):
+                The interval of local sync func (seconds).
+                Defaults to 3 * 60 seconds.
+            enable_global_gc (bool):
+                Enable the global gc or not. Defaults to True.
+            global_gc_interval_s (int):
+                The interval of the global gc (seconds).
+                Defaults to 10 * 60 seconds.
+            global_ttl_s (int):
+                The time to live of the global kv cache objects (seconds).
+                Defaults to 8 * 60 seconds.
+        """
+        self.chunk_size = chunk_size
+        self.kv_cache_ns = kv_cache_ns
+        self.local_sync_interval_s = local_sync_interval_s
+        self.enable_global_gc = enable_global_gc
+        self.global_gc_interval_s = global_gc_interval_s
+        self.global_ttl_s = global_ttl_s
+
+        import vineyard
+
+        self.ipc_client = vineyard.connect(socket).ipc_client
+        splits = rpc_endpoint.split(":")
+        if len(splits) == 2:
+            rpc_host = splits[0]
+            rpc_port = splits[1]
+            self.rpc_client = vineyard.connect(
+                host=rpc_host, port=rpc_port, rdma_endpoint=rdma_endpoint
+            ).rpc_client
+
+    def __repr__(self):
+        return (
+            f'AIBrixCacheConfig('
+            f'chunk_size={self.chunk_size}, '
+            f'kv_cache_ns={self.kv_cache_ns}, '
+            f'local_sync_interval_s={self.local_sync_interval_s}, '
+            f'enable_global_gc={self.enable_global_gc}, '
+            f'global_gc_interval_s={self.global_gc_interval_s}, '
+            f'global_ttl_s={self.global_ttl_s}), '
+        )
+
+
 class KVCache:  # pylint: disable=too-many-instance-attributes
     """KVCache is a class that manages the llm kv cache in vineyard."""
 
     def __init__(
         self,
-        cache_config: Optional[Union[VineyardCacheConfig, FileCacheConfig]] = None,
+        cache_config: Optional[
+            Union[VineyardCacheConfig, FileCacheConfig, AIBrixCacheConfig]
+        ] = None,
         tensor_nbytes: int = 1024,
         cache_capacity: int = 1024,
         layer: int = 1,
@@ -292,19 +360,44 @@ class KVCache:  # pylint: disable=too-many-instance-attributes
                     config, 'VINEYARD_LLM_CACHE_FILESYSTEM', 'rdma_endpoint', str
                 )
                 cache_config = FileCacheConfig(**config)
+            if 'AIBRIX_LLM_KV_CACHE' in os.environ:
+                config = {}
+                _argument_from_env(config, 'AIBRIX_LLM_KV_CACHE', 'chunk_size', int)
+                _argument_from_env(config, 'AIBRIX_LLM_KV_CACHE', 'kv_cache_ns', str)
+                _argument_from_env(
+                    config, 'AIBRIX_LLM_KV_CACHE', 'local_sync_interval_s', int
+                )
+                _argument_from_env(
+                    config, 'AIBRIX_LLM_KV_CACHE', 'enable_global_gc', bool
+                )
+                _argument_from_env(
+                    config, 'AIBRIX_LLM_KV_CACHE', 'global_gc_interval_s', int
+                )
+                _argument_from_env(config, 'AIBRIX_LLM_KV_CACHE', 'global_ttl_s', int)
+                _argument_from_env(config, 'AIBRIX_LLM_KV_CACHE', 'socket', str)
+                _argument_from_env(config, 'AIBRIX_LLM_KV_CACHE', 'rpc_endpoint', str)
+                _argument_from_env(config, 'AIBRIX_LLM_KV_CACHE', 'rdma_endpoint', str)
+                cache_config = AIBrixCacheConfig(**config)
 
         if rank is not None and world_size is not None:
             if isinstance(cache_config, FileCacheConfig):
                 cache_config.root = os.path.join(
                     cache_config.root, f'{world_size}-{rank}'
                 )
+            if isinstance(cache_config, AIBrixCacheConfig):
+                cache_config.kv_cache_ns = (
+                    f'{cache_config.kv_cache_ns}_{world_size}_{rank}'
+                )
 
         logger.info("Initializing vineyard llm cache with config: %r", cache_config)
-        if not isinstance(cache_config, VineyardCacheConfig) and not isinstance(
-            cache_config, FileCacheConfig
+        if (
+            not isinstance(cache_config, VineyardCacheConfig)
+            and not isinstance(cache_config, FileCacheConfig)
+            and not isinstance(cache_config, AIBrixCacheConfig)
         ):
             raise ValueError(
-                "The cache_config should be VineyardCacheConfig or FileCacheConfig."
+                "The cache_config should be VineyardCacheConfig or FileCacheConfig "
+                "or AIBrixCacheConfig."
             )
         self.cache_config = cache_config
         self.tensor_nbytes = tensor_nbytes

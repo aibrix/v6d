@@ -295,6 +295,8 @@ bool SocketConnection::processMessage(const std::string& message_in) {
     return doDelData(root);
   } else if (cmd == command_t::LIST_DATA_REQUEST) {
     return doListData(root);
+  } else if (cmd == command_t::LIST_BY_REQUEST) {
+    return doListBy(root);
   } else if (cmd == command_t::EXISTS_REQUEST) {
     return doExists(root);
   } else if (cmd == command_t::PERSIST_REQUEST) {
@@ -1430,10 +1432,11 @@ bool SocketConnection::doPutName(const json& root) {
   auto self(shared_from_this());
   ObjectID object_id;
   std::string name;
-  TRY_READ_REQUEST(ReadPutNameRequest, root, object_id, name);
+  bool unique;
+  TRY_READ_REQUEST(ReadPutNameRequest, root, object_id, name, unique);
   name = escape_json_pointer(name);
-  RESPONSE_ON_ERROR(
-      server_ptr_->PutName(object_id, name, [self](const Status& status) {
+  RESPONSE_ON_ERROR(server_ptr_->PutName(
+      object_id, name, unique, [self](const Status& status) {
         std::string message_out;
         if (status.ok()) {
           WritePutNameReply(message_out);
@@ -1490,6 +1493,29 @@ bool SocketConnection::doListName(const json& root) {
         std::string message_out;
         if (status.ok()) {
           WriteListNameReply(names, message_out);
+        } else {
+          VLOG(100) << "Error: " << status.ToString();
+          WriteErrorReply(status, message_out);
+        }
+        self->doWrite(message_out);
+        return Status::OK();
+      }));
+  return false;
+}
+
+bool SocketConnection::doListBy(const json& root) {
+  auto self(shared_from_this());
+  std::string field;
+  std::string pattern;
+  bool regex;
+  size_t limit;
+  TRY_READ_REQUEST(ReadListByRequest, root, field, pattern, regex, limit);
+  RESPONSE_ON_ERROR(server_ptr_->ListBy(
+      field, pattern, regex, limit,
+      [self](const Status& status, const std::vector<ObjectID>& ids) {
+        std::string message_out;
+        if (status.ok()) {
+          WriteListByReply(ids, message_out);
         } else {
           VLOG(100) << "Error: " << status.ToString();
           WriteErrorReply(status, message_out);

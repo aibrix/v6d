@@ -92,6 +92,8 @@ struct command_t {
   static const std::string GET_DATA_REPLY;
   static const std::string LIST_DATA_REQUEST;
   static const std::string LIST_DATA_REPLY;
+  static const std::string LIST_BY_REQUEST;
+  static const std::string LIST_BY_REPLY;
   static const std::string DELETE_DATA_REQUEST;
   static const std::string DELETE_DATA_REPLY;
   static const std::string EXISTS_REQUEST;
@@ -508,6 +510,16 @@ void WriteListDataRequest(std::string const& pattern, bool const regex,
 Status ReadListDataRequest(const json& root, std::string& pattern, bool& regex,
                            size_t& limit);
 
+void WriteListByRequest(std::string const& field, std::string const& pattern,
+                        bool const regex, size_t const limit, std::string& msg);
+
+Status ReadListByRequest(const json& root, std::string& field,
+                         std::string& pattern, bool& regex, size_t& limit);
+
+void WriteListByReply(std::vector<ObjectID> const& ids, std::string& msg);
+
+Status ReadListByReply(const json& root, std::vector<ObjectID>& ids);
+
 void WriteDelDataRequest(const ObjectID id, const bool force, const bool deep,
                          const bool memory_trim, const bool fastpath,
                          std::string& msg);
@@ -661,10 +673,10 @@ void WriteDropStreamReply(std::string& msg);
 Status ReadDropStreamReply(const json& root);
 
 void WritePutNameRequest(const ObjectID object_id, const std::string& name,
-                         std::string& msg);
+                         const bool unique, std::string& msg);
 
 Status ReadPutNameRequest(const json& root, ObjectID& object_id,
-                          std::string& name);
+                          std::string& name, bool& unique);
 
 void WritePutNameReply(std::string& msg);
 

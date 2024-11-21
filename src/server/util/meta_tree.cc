@@ -232,6 +232,31 @@ static Status get_name(const json& tree, std::string& name,
   return Status::OK();
 }
 
+static Status get_field(const json& tree, std::string const& field,
+                        std::string& value, bool const decode = false) {
+  json::const_iterator iter = tree.find(field);
+  if (iter == tree.end()) {
+    return Status::MetaTreeInvalid(field +
+                                   " not found in metadata: " + tree.dump(4));
+  }
+  if (iter->is_object()) {
+    LOG(ERROR) << "meta tree id invalid. " << *iter;
+    return Status::MetaTreeInvalid("type of '" + field +
+                                   "' in metadata is wrong: " + iter->dump(4));
+  }
+  value = iter->get_ref<std::string const&>();
+  if (decode) {
+    NodeType node_type = NodeType::InvalidType;
+    decode_value(value, node_type, value);
+    if (node_type != NodeType::Value) {
+      return Status::MetaTreeInvalid(
+          "value of '" + field +
+          "' in metadata is not of value type: " + value);
+    }
+  }
+  return Status::OK();
+}
+
 static Status get_type(const json& tree, std::string& type,
                        bool const decode = false) {
   // type: get the typename
@@ -427,6 +452,40 @@ Status ListName(const json& tree, std::string const& pattern, bool const regex,
     if (MatchTypeName(regex, pattern, item.key())) {
       found += 1;
       names[item.key()] = item.value().get<ObjectID>();
+    }
+  }
+  return Status::OK();
+}
+
+Status ListBy(const json& tree, std::string const& field,
+              std::string const& pattern, bool const regex, size_t const limit,
+              std::vector<ObjectID>& ids) {
+  if (!tree.contains("data")) {
+    return Status::OK();
+  }
+
+  size_t found = 0;
+  for (auto const& item : tree["data"].items()) {
+    if (!item.value().is_object() || item.value().empty()) {
+      LOG(INFO) << "metadata tree in vineyardd shouldn't be empty";
+      return Status::MetaTreeInvalid(
+          "metadata tree in vineyard server is empty in 'ListBy'");
+    }
+
+    if (found >= limit) {
+      break;
+    }
+
+    std::string value;
+    auto status = get_field(item.value(), field, value, true);
+    if (!status.ok()) {
+      continue;
+    }
+
+    // match on pattern
+    if (MatchTypeName(regex, pattern, value)) {
+      found += 1;
+      ids.push_back(ObjectIDFromString(item.key()));
     }
   }
   return Status::OK();

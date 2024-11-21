@@ -139,12 +139,38 @@ PYBIND11_MODULE(_llm_C, m) {
            py::arg("global_gc_interval") = 30 * 60,
            py::arg("global_ttl") = 30 * 60)
       .def(
+          py::init([](py::object rpc_client, py::object ipc_client,
+                      int tensor_nbytes, int cache_capacity, int layer,
+                      int chunk_size, std::string kv_cache_ns,
+                      int64_t local_sync_interval_s, bool global_gc_enabled,
+                      int64_t global_gc_interval_s,
+                      int64_t global_ttl_s) -> std::shared_ptr<KVCacheManager> {
+            AIBrixCacheConfig config(tensor_nbytes, cache_capacity, layer,
+                                     chunk_size, kv_cache_ns,
+                                     local_sync_interval_s, global_gc_enabled,
+                                     global_gc_interval_s, global_ttl_s);
+            Client& ipc_client_ = ipc_client.cast<Client&>();
+            RPCClient& rpc_client_ = rpc_client.cast<RPCClient&>();
+            std::shared_ptr<KVCacheManager> manager;
+            VINEYARD_CHECK_OK(vineyard::KVCacheManager::Make(
+                rpc_client_, ipc_client_, manager, config));
+            return manager;
+          }),
+          py::arg("rpc_client"), py::arg("ipc_client"),
+          py::arg("tensor_nbytes") = 1024, py::arg("cache_capacity") = 1024,
+          py::arg("layer") = 1, py::arg("chunk_size") = 16,
+          py::arg("kv_cache_ns") = "aibrix",
+          py::arg("local_sync_interval_s") = 3 * 60,
+          py::arg("enable_global_gc") = true,
+          py::arg("global_gc_interval_s") = 10 * 60,
+          py::arg("global_ttl_s") = 8 * 60)
+      .def(
           "update",
           [](KVCacheManager* self, const std::vector<int>& tokenList,
              int& next_token,
              const std::vector<std::pair<vineyard::LLMKV, vineyard::LLMKV>>&
                  kv_state) {
-            VINEYARD_CHECK_OK(self->Update(tokenList, next_token, kv_state));
+            VINEYARD_DISCARD(self->Update(tokenList, next_token, kv_state));
           },
           py::arg("tokens"), py::arg("next_token"), py::arg("kv_state"))
       .def(
@@ -153,7 +179,7 @@ PYBIND11_MODULE(_llm_C, m) {
              const std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kv_states)
               -> size_t {
             size_t updated = 0;
-            VINEYARD_CHECK_OK(self->Update(tokens, kv_states, updated));
+            VINEYARD_DISCARD(self->Update(tokens, kv_states, updated));
             return updated;
           },
           py::arg("tokens"), py::arg("kv_states"))
@@ -164,7 +190,7 @@ PYBIND11_MODULE(_llm_C, m) {
              const std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kv_states)
               -> size_t {
             size_t updated = 0;
-            VINEYARD_CHECK_OK(self->Update(prefix, tokens, kv_states, updated));
+            VINEYARD_DISCARD(self->Update(prefix, tokens, kv_states, updated));
             return updated;
           },
           py::arg("prefix"), py::arg("tokens"), py::arg("kv_states"))
@@ -174,7 +200,7 @@ PYBIND11_MODULE(_llm_C, m) {
              const std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kv_states)
               -> size_t {
             size_t updated = 0;
-            VINEYARD_CHECK_OK(self->BatchedUpdate(tokens, kv_states, updated));
+            VINEYARD_DISCARD(self->BatchedUpdate(tokens, kv_states, updated));
             return updated;
           },
           py::arg("tokens"), py::arg("kv_states"))
@@ -186,7 +212,7 @@ PYBIND11_MODULE(_llm_C, m) {
                 kv_cache_list
                     .cast<std::vector<std::vector<std::pair<LLMKV, LLMKV>>>>();
             size_t matched = 0;
-            VINEYARD_CHECK_OK(self->Query(tokens, kv_state_vec, matched));
+            VINEYARD_DISCARD(self->Query(tokens, kv_state_vec, matched));
             for (size_t i = 0; i < kv_state_vec.size() && i < matched; ++i) {
               for (size_t j = 0; j < kv_state_vec[i].size(); ++j) {
                 kv_cache_list[i].cast<py::list>()[j] =
@@ -202,8 +228,8 @@ PYBIND11_MODULE(_llm_C, m) {
              int& next_token, py::list& kv_state) {
             std::vector<std::pair<LLMKV, LLMKV>> kv_state_vec =
                 kv_state.cast<std::vector<std::pair<LLMKV, LLMKV>>>();
-            VINEYARD_CHECK_OK(self->Query(prefix, next_token, kv_state_vec));
-            for (size_t i = 0; i < kv_state_vec.size(); ++i) {
+            auto status = self->Query(prefix, next_token, kv_state_vec);
+            for (size_t i = 0; i < kv_state_vec.size() && status.ok(); ++i) {
               kv_state[i] = py::cast(kv_state_vec[i]);
             }
           },
@@ -217,7 +243,7 @@ PYBIND11_MODULE(_llm_C, m) {
                 kv_cache_list
                     .cast<std::vector<std::vector<std::pair<LLMKV, LLMKV>>>>();
             size_t matched = 0;
-            VINEYARD_CHECK_OK(
+            VINEYARD_DISCARD(
                 self->Query(prefix, tokens, kv_state_vec, matched));
             for (size_t i = 0; i < kv_state_vec.size() && i < matched; ++i) {
               for (size_t j = 0; j < kv_state_vec[i].size(); ++j) {
@@ -236,8 +262,7 @@ PYBIND11_MODULE(_llm_C, m) {
                 kv_cache_list
                     .cast<std::vector<std::vector<std::pair<LLMKV, LLMKV>>>>();
             size_t matched = 0;
-            VINEYARD_CHECK_OK(
-                self->BatchedQuery(tokens, kv_state_vec, matched));
+            VINEYARD_DISCARD(self->BatchedQuery(tokens, kv_state_vec, matched));
             for (size_t i = 0; i < kv_state_vec.size() && i < matched; ++i) {
               for (size_t j = 0; j < kv_state_vec[i].size(); ++j) {
                 kv_cache_list[i].cast<py::list>()[j] =

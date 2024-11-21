@@ -125,6 +125,10 @@ class VineyardServer : public std::enable_shared_from_this<VineyardServer> {
                   size_t const limit,
                   callback_t<const std::map<std::string, ObjectID>&> callback);
 
+  Status ListBy(std::string const& field, std::string const& pattern,
+                bool const regex, size_t const limit,
+                callback_t<const std::vector<ObjectID>&> callback);
+
   Status CreateData(
       const json& tree,
       callback_t<const ObjectID, const Signature, const InstanceID> callback);
@@ -168,7 +172,7 @@ class VineyardServer : public std::enable_shared_from_this<VineyardServer> {
   Status DeleteAllAt(const json& meta, InstanceID const instance_id);
 
   Status PutName(const ObjectID object_id, const std::string& name,
-                 callback_t<> callback);
+                 const bool unique, callback_t<> callback);
 
   Status GetName(const std::string& name, const bool wait,
                  DeferredReq::alive_t alive,  // if connection is still alive

@@ -45,6 +45,10 @@ class KVCacheManager {
                      std::shared_ptr<KVCacheManager>& manager,
                      FileCacheConfig& config);
 
+  static Status Make(RPCClient& rpc_client, Client& ipc_client,
+                     std::shared_ptr<KVCacheManager>& manager,
+                     AIBrixCacheConfig& config);
+
   Status Update(const std::vector<int>& tokenList, int nextToken,
                 const std::vector<std::pair<LLMKV, LLMKV>>& kvState);
 

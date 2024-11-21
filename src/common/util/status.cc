@@ -183,6 +183,9 @@ std::string Status::CodeAsString() const {
   case StatusCode::kGlobalObjectInvalid:
     type = "Global object invalid";
     break;
+  case StatusCode::kNameExists:
+    type = "Name exists";
+    break;
   case StatusCode::kUnknownError:
   default:
     type = "Unknown error";
@@ -299,6 +302,9 @@ std::string Status::CodeAsLabel() const {
     break;
   case StatusCode::kGlobalObjectInvalid:
     type = "GlobalObjectInvalid";
+    break;
+  case StatusCode::kNameExists:
+    type = "NameExists";
     break;
   case StatusCode::kUnknownError:
   default:

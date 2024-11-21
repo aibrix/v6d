@@ -94,6 +94,9 @@ Status ListData(const json& tree, const std::string& instance_name,
 Status ListAllData(const json& tree, std::vector<ObjectID>& objects);
 Status ListName(const json& tree, std::string const& pattern, bool const regex,
                 size_t const limit, std::map<std::string, ObjectID>& names);
+Status ListBy(const json& tree, std::string const& field,
+              std::string const& pattern, bool const regex, size_t const limit,
+              std::vector<ObjectID>& ids);
 Status IfPersist(const json& tree, const ObjectID id, bool& persist);
 Status Exists(const json& tree, const ObjectID id, bool& exists);
 

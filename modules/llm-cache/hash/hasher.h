@@ -84,6 +84,51 @@ class Hasher {
     return Status::OK();
   }
 
+  /*
+   * This function processes a sequence of tokens in fixed-size chunks to
+   * generate a sequence of hash values.
+   *
+   * For each chunk of tokens:
+   *   - If it's not the first chunk, the hash of the previous chunk is added as
+   *     a prefix to the current chunk.
+   *   - The combined data (previous hash and current chunk) is hashed to
+   *     produce a new hash value.
+   *   - The new hash is converted to a hexadecimal string.
+   *
+   * The function thus produces a series of interdependent hash values, each
+   * influenced by the previous hash.
+   */
+  Status computeChunkHashesForTokens(const std::vector<int>& tokens,
+                                     int chunkSize,
+                                     std::vector<std::string>& hashes) {
+    char hashBuffer[9];
+    int tokenSize = tokens.size() - tokens.size() % chunkSize;
+    // if the token list (upper_bound) is less than the batch size, then return
+    // directly
+    if (tokenSize < chunkSize) {
+      return Status::OK();
+    }
+
+    std::vector<int> candidates;
+    candidates.reserve(chunkSize + 1);
+    int prevHash = 0;
+    for (int i = 0; i < tokenSize; i += chunkSize) {
+      if (i > 0) {
+        candidates.push_back(prevHash);
+      }
+      candidates.insert(candidates.end(), tokens.begin() + i,
+                        tokens.begin() + i + chunkSize);
+      auto currHash =
+          hashAlgorithm->hash(reinterpret_cast<const char*>(candidates.data()),
+                              candidates.size() * sizeof(int));
+      std::snprintf(hashBuffer, sizeof(hashBuffer), "%08x", currHash);
+      hashes.push_back(hashBuffer);
+      candidates.clear();
+      prevHash = currHash;
+    }
+    return Status::OK();
+  }
+
  private:
   IHashAlgorithm* hashAlgorithm;
 };

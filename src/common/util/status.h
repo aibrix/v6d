@@ -257,6 +257,8 @@ enum class StatusCode : unsigned char {
 
   kGlobalObjectInvalid = 51,
 
+  kNameExists = 91,
+
   kUnknownError = 255
 };
 
@@ -595,6 +597,10 @@ class VINEYARD_MUST_USE_TYPE Status {
     return Status(StatusCode::kGlobalObjectInvalid, message);
   }
 
+  static Status NameExists(std::string const& name) {
+    return Status(StatusCode::kNameExists, "Name " + name + " already exists");
+  }
+
   /// Return an error status for unknown errors
   static Status UnknownError(std::string const& message = "") {
     return Status(StatusCode::kUnknownError, message);
@@ -705,6 +711,8 @@ class VINEYARD_MUST_USE_TYPE Status {
   bool IsGlobalObjectInvalid() const {
     return code() == StatusCode::kGlobalObjectInvalid;
   }
+  /// Return true iff the name already exists
+  bool IsNameExists() const { return code() == StatusCode::kNameExists; }
   /// Return true iff the status indicates an unknown error.
   bool IsUnknownError() const { return code() == StatusCode::kUnknownError; }
 

@@ -452,6 +452,28 @@ Status VineyardServer::ListName(
   return Status::OK();
 }
 
+Status VineyardServer::ListBy(
+    std::string const& field, std::string const& pattern, bool const regex,
+    size_t const limit, callback_t<const std::vector<ObjectID>&> callback) {
+  ENSURE_VINEYARDD_READY();
+  auto self(shared_from_this());
+  meta_service_ptr_->RequestToGetData(true, [field, pattern, regex, limit,
+                                             callback](const Status& status,
+                                                       const json& meta) {
+    if (status.ok()) {
+      std::vector<ObjectID> ids;
+      Status s;
+      VCATCH_JSON_ERROR(
+          meta, s, meta_tree::ListBy(meta, field, pattern, regex, limit, ids));
+      return callback(s, ids);
+    } else {
+      VLOG(100) << "Error: " << status.ToString();
+      return status;
+    }
+  });
+  return Status::OK();
+}
+
 namespace detail {
 
 Status validate_metadata(const json& tree, json& result, Signature& signature,
@@ -868,12 +890,13 @@ Status VineyardServer::DeleteAllAt(const json& meta,
 }
 
 Status VineyardServer::PutName(const ObjectID object_id,
-                               const std::string& name, callback_t<> callback) {
+                               const std::string& name, const bool unique,
+                               callback_t<> callback) {
   ENSURE_VINEYARDD_READY();
   auto self(shared_from_this());
   meta_service_ptr_->RequestToPersist(
-      [object_id, name](const Status& status, const json& meta,
-                        std::vector<meta_tree::op_t>& ops) {
+      [object_id, name, unique](const Status& status, const json& meta,
+                                std::vector<meta_tree::op_t>& ops) {
         if (status.ok()) {
           // TODO: do proper validation:
           // 1. global objects can have name, local ones cannot.
@@ -907,6 +930,19 @@ Status VineyardServer::PutName(const ObjectID object_id,
           if (!persist) {
             return Status::Invalid(
                 "transient objects cannot have name, please persist it first");
+          }
+
+          if (unique) {
+            std::map<std::string, ObjectID> names;
+            Status s;
+            VCATCH_JSON_ERROR(
+                meta, s,
+                meta_tree::ListName(meta, name, false, /* limit */ 1, names));
+            VINEYARD_DISCARD(s);
+            // if unique is requested and name exists
+            if (!names.empty()) {
+              return Status::NameExists(name);
+            }
           }
 
           ops.emplace_back(meta_tree::op_t::Put("/names/" + name, object_id));
@@ -1201,11 +1237,17 @@ Status VineyardServer::LabelObjects(const ObjectID object_id,
         if (is_transient) {
           self->meta_service_ptr_->RequestToBulkUpdate(
               [callback, object_id, label_string](
-                  const Status& status, const json&,
+                  const Status& status, const json& new_tree,
                   std::vector<meta_tree::op_t>& ops, ObjectID&, Signature&,
                   InstanceID&) {
                 if (!status.ok()) {
                   return callback(status);
+                }
+                if (!new_tree.contains("data") ||
+                    !new_tree["data"].contains(ObjectIDToString(object_id))) {
+                  return callback(Status::ObjectNotExists(
+                      "object " + ObjectIDToString(object_id) +
+                      " doesn't exist"));
                 }
                 ops.emplace_back(meta_tree::op_t::Put(
                     "/data/" + ObjectIDToString(object_id) + "/__labels",
@@ -1217,10 +1259,16 @@ Status VineyardServer::LabelObjects(const ObjectID object_id,
         } else {
           self->meta_service_ptr_->RequestToPersist(
               [callback, object_id, label_string](
-                  const Status& status, const json&,
+                  const Status& status, const json& new_tree,
                   std::vector<meta_tree::op_t>& ops) {
                 if (!status.ok()) {
                   return callback(status);
+                }
+                if (!new_tree.contains("data") ||
+                    !new_tree["data"].contains(ObjectIDToString(object_id))) {
+                  return callback(Status::ObjectNotExists(
+                      "object " + ObjectIDToString(object_id) +
+                      " doesn't exist"));
                 }
                 ops.emplace_back(meta_tree::op_t::Put(
                     "/data/" + ObjectIDToString(object_id) + "/__labels",
