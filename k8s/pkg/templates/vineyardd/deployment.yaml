@@ -205,6 +205,28 @@ spec:
       - name: log
         emptyDir: {}
       affinity:
+        {{- if .Spec.Scheduler.GPUType }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  # extract the key to configuration
+                  - key: machine.cluster.vke.volcengine.com/gpu-name
+                    operator: In
+                    values:
+                      - {{ .Spec.Scheduler.GPUType }}
+        {{- end }}
+        {{- if .Spec.Scheduler.AffinityWorkload }}
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "model.aibrix.ai/name"
+                    operator: In
+                    values:
+                      - {{ .Spec.Scheduler.AffinityWorkload }}
+              topologyKey: "kubernetes.io/hostname"
+        {{- end }}
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:

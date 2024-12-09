@@ -101,6 +101,19 @@ type VolumeConfig struct {
 	MountPath string `json:"mountPath,omitempty"`
 }
 
+// SchedulingConfig holds all configurations about scheduling
+type SchedulingConfig struct {
+	// GPUType is a request to schedule this pod onto a specific GPU node. If it is non-empty,
+	// the scheduler simply schedules this pod onto that node, assuming that it fits resource
+	// requirements.
+	// +optional
+	GPUType string `json:"gpuType,omitempty"`
+	// If specified, the pod's scheduling constraints
+	// value should be the model name, model.aibrix.ai/name: deepseek-coder-7b-instruct
+	// +optional
+	AffinityWorkload string `json:"affinityWorkload,omitempty"`
+}
+
 // VineyardConfig holds all configuration about vineyard container
 type VineyardConfig struct {
 	// represent the vineyardd's image
@@ -227,6 +240,11 @@ type VineyarddSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:={pvcName: "", mountPath: ""}
 	Volume VolumeConfig `json:"volume,omitempty"`
+
+	// the configuration of scheduling
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:={}
+	Scheduler SchedulingConfig `json:"scheduler,omitempty"`
 
 	// SecurityContext holds the security context settings for the vineyardd container.
 	// +kubebuilder:validation:Optional

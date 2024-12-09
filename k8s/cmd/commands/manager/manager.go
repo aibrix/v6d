@@ -297,7 +297,7 @@ func startScheduler(mgr manager.Manager, schedulerConfigFile string) {
 }
 
 // checkKubernetesVersionForScheduler checks the kubernetes version for the scheduler
-// the scheduler only supports kubernetes version 1.19-1.24
+// the scheduler only supports kubernetes version 1.19-1.30
 func checkKubernetesVersionForScheduler() (bool, error) {
 	config := util.GetKubernetesConfig()
 
@@ -321,8 +321,8 @@ func checkKubernetesVersionForScheduler() (bool, error) {
 		return false, err
 	}
 
-	if major != 1 || minor < 19 || minor > 24 {
-		return false, fmt.Errorf("the scheduler only supports kubernetes version 1.19-1.24")
+	if major != 1 || minor < 19 || minor > 30 {
+		return false, fmt.Errorf("the scheduler only supports kubernetes version 1.19-1.30")
 	}
 
 	return true, nil
