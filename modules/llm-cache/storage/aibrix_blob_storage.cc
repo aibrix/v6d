@@ -690,6 +690,39 @@ Status AIBrixBlobStorage::ListKVCache(const std::string& prefix,
   return rpc_client_.GetMetaData(ids, metas, /* sync remote */ true);
 }
 
+// Status AIBrixBlobStorage::ProcessPersistList(
+//     const std::vector<std::pair<std::string, FifoEntry>>& persist_list) {
+//   VLOG(100) << "ProcessPersistList: #persist chunks=" << persist_list.size();
+
+//   auto& client = GetClient();
+//   for (const auto& pair : persist_list) {
+//     auto& key = pair.first;
+//     auto& chunk_builder = pair.second.chunk_builder;
+//     ObjectID chunk_id;
+//     auto s = SealAndPersist(key, chunk_builder, chunk_id);
+//     if (s.ok()) {
+//       VLOG(100) << "Persist " << key
+//                 << ", obj id=" << ObjectIDToString(chunk_id);
+//       std::unique_lock<std::mutex> lock(main_fifo_mu_);
+//       auto it = main_fifo_.findWithoutPromotion(key);
+//       if (it != main_fifo_.end()) {
+//         VLOG(100) << "Main fifo: " << key
+//                   << " obj id=" << ObjectIDToString(chunk_id);
+//         it->second.object_id = chunk_id;
+//       } else {
+//         VLOG(100) << "Main fifo: " << key << " not in fifo, delete obj "
+//                   << chunk_id;
+//         VINEYARD_DISCARD(client.DelData(chunk_id));
+//       }
+//     } else {
+//       VLOG(100) << "Failed to seal and persist " << key
+//                 << ", error=" << s.ToString();
+//     }
+//   }
+
+//   return Status::OK();
+// }
+
 Status AIBrixBlobStorage::ProcessPersistList(
     const std::vector<std::pair<std::string, FifoEntry>>& persist_list) {
   VLOG(100) << "ProcessPersistList: #persist chunks=" << persist_list.size();
@@ -703,16 +736,50 @@ Status AIBrixBlobStorage::ProcessPersistList(
     if (s.ok()) {
       VLOG(100) << "Persist " << key
                 << ", obj id=" << ObjectIDToString(chunk_id);
-      std::unique_lock<std::mutex> lock(main_fifo_mu_);
-      auto it = main_fifo_.findWithoutPromotion(key);
-      if (it != main_fifo_.end()) {
-        VLOG(100) << "Main fifo: " << key
-                  << " obj id=" << ObjectIDToString(chunk_id);
-        it->second.object_id = chunk_id;
-      } else {
-        VLOG(100) << "Main fifo: " << key << " not in fifo, delete obj "
-                  << chunk_id;
-        VINEYARD_DISCARD(client.DelData(chunk_id));
+      
+      // Check if the key is in main_fifo and update it
+      bool found_in_main = false;
+      {
+        std::unique_lock<std::mutex> lock(main_fifo_mu_);
+        auto it = main_fifo_.findWithoutPromotion(key);
+        if (it != main_fifo_.end()) {
+          VLOG(100) << "Main fifo: " << key
+                    << " obj id=" << ObjectIDToString(chunk_id);
+          it->second.object_id = chunk_id;
+          found_in_main = true;
+        }
+      }
+      
+      // If not found in main_fifo, check if it's in small_fifo
+      if (!found_in_main) {
+        std::unique_lock<std::mutex> lock(small_fifo_mu_);
+        auto it = small_fifo_.findWithoutPromotion(key);
+        if (it != small_fifo_.end()) {
+          VLOG(100) << "Small fifo: " << key
+                    << " obj id=" << ObjectIDToString(chunk_id);
+          it->second.object_id = chunk_id;
+          
+          // Optionally, we could promote this entry to main_fifo since it's now persisted
+          // by copying the entry and then erasing it from small_fifo
+          FifoEntry promoted_entry = it->second;
+          
+          // Release the small_fifo lock before acquiring main_fifo lock to avoid deadlock
+          lock.unlock();
+          
+          std::unique_lock<std::mutex> main_lock(main_fifo_mu_);
+          main_fifo_.set(key, std::move(promoted_entry), /* promote */ false);
+          
+          // Re-acquire small_fifo lock and erase the entry
+          std::unique_lock<std::mutex> small_lock(small_fifo_mu_);
+          small_fifo_.erase(key);
+          
+          VLOG(100) << "Gangmuk, Promoted " << key << " from small_fifo to main_fifo after persistence";
+        } else {
+          VLOG(100) << "Gangmuk, Neither in main_fifo nor small_fifo: " << key 
+                    << " obj id=" << ObjectIDToString(chunk_id) 
+                    << ", deleting object";
+          VINEYARD_DISCARD(client.DelData(chunk_id));
+        }
       }
     } else {
       VLOG(100) << "Failed to seal and persist " << key
@@ -782,6 +849,28 @@ Status AIBrixBlobStorage::LocalSyncFunc() {
       }
     }
   }
+
+  // Collect entries from small_fifo that need to be persisted
+  {
+    std::unique_lock<std::mutex> lock(small_fifo_mu_);
+    for (auto& pair : small_fifo_) {
+      auto& key = pair.first;
+      auto& entry = pair.second;
+      if (!entry.chunk_builder || !entry.chunk_builder->IsReady()) {
+        // skip never accessed chunks
+        // skip not ready chunks
+        continue;
+      }
+
+      if (entry.object_id == InvalidObjectID()) {
+        persist_list.push_back({key, entry});
+      }
+    }
+  }
+
+  VLOG(100) << "Gangmuk, LocalSyncFunc: Persisting " << persist_list.size() 
+            << " chunks (" << (persist_list.size() - update_list.size()) 
+            << " from small_fifo)";
 
   auto status = ProcessPersistList(persist_list);
 
