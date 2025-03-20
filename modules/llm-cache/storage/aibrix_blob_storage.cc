@@ -736,7 +736,7 @@ Status AIBrixBlobStorage::ProcessPersistList(
     if (s.ok()) {
       VLOG(100) << "Persist " << key
                 << ", obj id=" << ObjectIDToString(chunk_id);
-      
+
       // Check if the key is in main_fifo and update it
       bool found_in_main = false;
       {
@@ -749,7 +749,7 @@ Status AIBrixBlobStorage::ProcessPersistList(
           found_in_main = true;
         }
       }
-      
+
       // If not found in main_fifo, check if it's in small_fifo
       if (!found_in_main) {
         std::unique_lock<std::mutex> lock(small_fifo_mu_);
@@ -758,22 +758,22 @@ Status AIBrixBlobStorage::ProcessPersistList(
           VLOG(100) << "Small fifo: " << key
                     << " obj id=" << ObjectIDToString(chunk_id);
           it->second.object_id = chunk_id;
-          
+
           // Optionally, we could promote this entry to main_fifo since it's now
           // persisted by copying the entry and then erasing it from small_fifo
           FifoEntry promoted_entry = it->second;
-          
+
           // Release the small_fifo lock before acquiring main_fifo lock to
           // avoid deadlock
           lock.unlock();
-          
+
           std::unique_lock<std::mutex> main_lock(main_fifo_mu_);
           main_fifo_.set(key, std::move(promoted_entry), /* promote */ false);
-          
+
           // Re-acquire small_fifo lock and erase the entry
           std::unique_lock<std::mutex> small_lock(small_fifo_mu_);
           small_fifo_.erase(key);
-          
+
           VLOG(100) << "Gangmuk, Promoted " << key
                     << " from small_fifo to main_fifo after persistence";
         } else {
@@ -822,64 +822,64 @@ Status AIBrixBlobStorage::ProcessUpdateList(
 }
 
 Status AIBrixBlobStorage::LocalSyncFunc() {
-    // load global main fifo and merge it with the local one
-    VINEYARD_DISCARD(BuildMainFifo());
-  
-    using PairT = std::pair<std::string, FifoEntry>;
-    std::vector<PairT> persist_list;
-    std::vector<PairT> update_list;
-    {
-      std::unique_lock<std::mutex> lock(main_fifo_mu_);
-      for (auto& pair : main_fifo_) {
-        auto& key = pair.first;
-        auto& entry = pair.second;
-        if (!entry.chunk_builder || !entry.chunk_builder->IsReady()) {
-          // skip never accessed chunks
-          // skip not ready chunks
-          continue;
-        }
-  
-        if (entry.object_id == InvalidObjectID()) {
-          persist_list.push_back({key, entry});
-        }
-  
-        if (entry.object_id != InvalidObjectID() &&
-            entry.chunk_builder->GetAccessTime() >
-                entry.chunk_builder->GetGlobalAccessTime() +
-                    local_sync_interval_s_.count() * 1000000000) {
-          update_list.push_back({key, entry});
-        }
+  // load global main fifo and merge it with the local one
+  VINEYARD_DISCARD(BuildMainFifo());
+
+  using PairT = std::pair<std::string, FifoEntry>;
+  std::vector<PairT> persist_list;
+  std::vector<PairT> update_list;
+  {
+    std::unique_lock<std::mutex> lock(main_fifo_mu_);
+    for (auto& pair : main_fifo_) {
+      auto& key = pair.first;
+      auto& entry = pair.second;
+      if (!entry.chunk_builder || !entry.chunk_builder->IsReady()) {
+        // skip never accessed chunks
+        // skip not ready chunks
+        continue;
+      }
+
+      if (entry.object_id == InvalidObjectID()) {
+        persist_list.push_back({key, entry});
+      }
+
+      if (entry.object_id != InvalidObjectID() &&
+          entry.chunk_builder->GetAccessTime() >
+              entry.chunk_builder->GetGlobalAccessTime() +
+                  local_sync_interval_s_.count() * 1000000000) {
+        update_list.push_back({key, entry});
       }
     }
-  
-    // Collect entries from small_fifo that need to be persisted
-    {
-      std::unique_lock<std::mutex> lock(small_fifo_mu_);
-      for (auto& pair : small_fifo_) {
-        auto& key = pair.first;
-        auto& entry = pair.second;
-        if (!entry.chunk_builder || !entry.chunk_builder->IsReady()) {
-          // skip never accessed chunks
-          // skip not ready chunks
-          continue;
-        }
-  
-        if (entry.object_id == InvalidObjectID()) {
-          persist_list.push_back({key, entry});
-        }
-      }
-    }
-  
-    VLOG(100) << "Gangmuk, LocalSyncFunc: Persisting " << persist_list.size()
-              << " chunks (" << (persist_list.size() - update_list.size())
-              << " from small_fifo)";
-  
-    auto status = ProcessPersistList(persist_list);
-  
-    status += ProcessUpdateList(update_list);
-  
-    return status;
   }
+
+  // Collect entries from small_fifo that need to be persisted
+  {
+    std::unique_lock<std::mutex> lock(small_fifo_mu_);
+    for (auto& pair : small_fifo_) {
+      auto& key = pair.first;
+      auto& entry = pair.second;
+      if (!entry.chunk_builder || !entry.chunk_builder->IsReady()) {
+        // skip never accessed chunks
+        // skip not ready chunks
+        continue;
+      }
+
+      if (entry.object_id == InvalidObjectID()) {
+        persist_list.push_back({key, entry});
+      }
+    }
+  }
+
+  VLOG(100) << "Gangmuk, LocalSyncFunc: Persisting " << persist_list.size()
+            << " chunks (" << (persist_list.size() - update_list.size())
+            << " from small_fifo)";
+
+  auto status = ProcessPersistList(persist_list);
+
+  status += ProcessUpdateList(update_list);
+
+  return status;
+}
 
 Status AIBrixBlobStorage::GlobalGCFunc() {
   auto now = std::chrono::high_resolution_clock::now();
