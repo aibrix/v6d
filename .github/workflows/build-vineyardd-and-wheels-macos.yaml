@@ -36,7 +36,7 @@ jobs:
         os: [macos-11]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -46,7 +46,7 @@ jobs:
           cat git-modules.txt
 
       - name: Cache for cccahe
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.ccache
           key: ${{ matrix.os }}-vineyardd-ccache-${{ hashFiles('**/git-modules.txt') }}
@@ -189,7 +189,7 @@ jobs:
           body: "vineyard ${{ steps.tag.outputs.TAG }}"
 
       - name: Upload CI artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vineyardd.${{ runner.os }}-generic.${{ github.sha }}.tar.gz
           path: vineyardd.${{ runner.os }}-generic.${{ github.sha }}.tar.gz
@@ -203,11 +203,11 @@ jobs:
         platform: [x86_64, aarch64]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: false
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: 1.19
 
@@ -259,7 +259,7 @@ jobs:
 
       - name: Upload CI artifacts
         if: ${{ matrix.platform == 'x86_64' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vineyardctl.${{ runner.os }}-generic.${{ github.sha }}.tar.gz
           path: vineyardctl.${{ runner.os }}-generic.${{ github.sha }}.tar.gz
@@ -274,7 +274,7 @@ jobs:
         python: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -284,7 +284,7 @@ jobs:
           cat git-modules.txt
 
       - name: Cache for cccahe
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.ccache
           key: ${{ matrix.os }}-${{ matrix.python }}-ccache-${{ hashFiles('**/git-modules.txt') }}
@@ -292,12 +292,12 @@ jobs:
             ${{ matrix.os }}-${{ matrix.python }}-ccache-
 
       - name: Download vineyardd artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vineyardd.${{ runner.os }}-generic.${{ github.sha }}.tar.gz
 
       - name: Download vineyardctl artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vineyardctl.${{ runner.os }}-generic.${{ github.sha }}.tar.gz
 
@@ -471,7 +471,7 @@ jobs:
           overwrite: true
           body: "vineyard ${{ steps.tag.outputs.TAG }}"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'workflow_dispatch' }}
         with:
           name: vineyard-macosx-wheels-${{ matrix.python }}

@@ -37,7 +37,7 @@ jobs:
         platform: [x86_64, aarch64]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -99,7 +99,7 @@ jobs:
           docker push ghcr.io/aibrix/v6d/vineyardd:latest_${{ matrix.platform }}
 
       - name: Upload CI artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vineyardd.${{ runner.os }}-${{ matrix.platform }}.${{ github.sha }}.tar.gz
           path: vineyardd.${{ runner.os }}-${{ matrix.platform }}.${{ github.sha }}.tar.gz
@@ -113,7 +113,7 @@ jobs:
         os: [ubuntu-20.04]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: false
 
@@ -154,7 +154,7 @@ jobs:
         platform: [x86_64, aarch64]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -203,7 +203,7 @@ jobs:
         os: [ubuntu-20.04]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: false
 
@@ -243,11 +243,11 @@ jobs:
         platform: [x86_64, aarch64]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: false
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: 1.19
 
@@ -292,7 +292,7 @@ jobs:
           tar zcvfh vineyardctl.${{ runner.os }}-${{ matrix.platform }}.${{ github.sha }}.tar.gz ./vineyardctl vineyardctl.${{ matrix.platform }}.${{ github.sha }}.sha512sum
 
       - name: Upload CI artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vineyardctl.${{ runner.os }}-${{ matrix.platform }}.${{ github.sha }}.tar.gz
           path: vineyardctl.${{ runner.os }}-${{ matrix.platform }}.${{ github.sha }}.tar.gz
@@ -307,17 +307,17 @@ jobs:
         platform: [x86_64, aarch64]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: false
 
       - name: Download vineyardd artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vineyardd.${{ runner.os }}-${{ matrix.platform }}.${{ github.sha }}.tar.gz
 
       - name: Download vineyardctl artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vineyardctl.${{ runner.os }}-${{ matrix.platform }}.${{ github.sha }}.tar.gz
 
@@ -351,7 +351,7 @@ jobs:
           overwrite: true
           body: "vineyard ${{ steps.tag.outputs.TAG }}"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'workflow_dispatch' }}
         with:
           name: vineyard-bdist-linux-${{ matrix.platform }}-wheels
@@ -366,7 +366,7 @@ jobs:
         platform: [x86_64, aarch64]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -389,7 +389,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Cache for cccahe
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.ccache
           key: ${{ matrix.os }}-${{ matrix.python }}-ccache-${{ hashFiles('**/git-modules.txt') }}
@@ -427,7 +427,7 @@ jobs:
           overwrite: true
           body: "vineyard ${{ steps.tag.outputs.TAG }}"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'workflow_dispatch' }}
         with:
           name: vineyard-linux-${{ matrix.platform }}-wheels
