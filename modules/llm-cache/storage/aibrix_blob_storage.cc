@@ -725,7 +725,7 @@ Status AIBrixBlobStorage::ListKVCache(const std::string& prefix,
 
 Status AIBrixBlobStorage::ProcessPersistList(
     const std::vector<std::pair<std::string, FifoEntry>>& persist_list) {
-  VLOG(100) << "ProcessPersistList: #persist chunks=" << persist_list.size();
+  VLOG(100) << "Gangmuk, ProcessPersistList: #persist chunks=" << persist_list.size();
 
   auto& client = GetClient();
   for (const auto& pair : persist_list) {
@@ -823,6 +823,7 @@ Status AIBrixBlobStorage::ProcessUpdateList(
 
 Status AIBrixBlobStorage::LocalSyncFunc() {
   // load global main fifo and merge it with the local one
+  VLOG(100) << "Gangmuk, LocalSyncFunc call";
   VINEYARD_DISCARD(BuildMainFifo());
 
   using PairT = std::pair<std::string, FifoEntry>;
