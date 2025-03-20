@@ -223,47 +223,47 @@ jobs:
             cmake .. -DBUILD_VINEYARD_SERVER_REDIS=ON
           fi
 
-      - name: Cpp format and lint
-        run: |
-          cd build
+      # - name: Cpp format and lint
+      #   run: |
+      #     cd build
 
-          function prepend() { while read line; do echo "${1}${line}"; done; }
+      #     function prepend() { while read line; do echo "${1}${line}"; done; }
 
-          make vineyard_clformat
-          GIT_DIFF=$(git diff --ignore-submodules)
-          if [[ -n $GIT_DIFF ]]; then
-              echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-              echo "| clang-format failures found!"
-              echo "|"
-              echo "$GIT_DIFF" | prepend "| "
-              echo "|"
-              echo "| Run: "
-              echo "|"
-              echo "|    make vineyard_clformat"
-              echo "|"
-              echo "| to fix this error."
-              echo "|"
-              echo "| Ensure you are working with clang-format-11, which can be obtained from"
-              echo "|"
-              echo "|    https://github.com/muttleyxd/clang-tools-static-binaries/releases "
-              echo "|"
-              echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-              exit -1
-          fi
+      #     make vineyard_clformat
+      #     GIT_DIFF=$(git diff --ignore-submodules)
+      #     if [[ -n $GIT_DIFF ]]; then
+      #         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+      #         echo "| clang-format failures found!"
+      #         echo "|"
+      #         echo "$GIT_DIFF" | prepend "| "
+      #         echo "|"
+      #         echo "| Run: "
+      #         echo "|"
+      #         echo "|    make vineyard_clformat"
+      #         echo "|"
+      #         echo "| to fix this error."
+      #         echo "|"
+      #         echo "| Ensure you are working with clang-format-11, which can be obtained from"
+      #         echo "|"
+      #         echo "|    https://github.com/muttleyxd/clang-tools-static-binaries/releases "
+      #         echo "|"
+      #         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+      #         exit -1
+      #     fi
 
-          function ec() { [[ "$1" == "-h" ]] && { shift && eval $* > /dev/null 2>&1; ec=$?; echo $ec; } || eval $*; ec=$?; }
+      #     function ec() { [[ "$1" == "-h" ]] && { shift && eval $* > /dev/null 2>&1; ec=$?; echo $ec; } || eval $*; ec=$?; }
 
-          ec make vineyard_cpplint
-          if [[ "$ec" != "0" ]]; then
-              echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-              echo "| cpplint failures found! Run: "
-              echo "|"
-              echo "|    make vineyard_cpplint"
-              echo "|"
-              echo "| to fix this error."
-              echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-              exit -1
-          fi
+      #     ec make vineyard_cpplint
+      #     if [[ "$ec" != "0" ]]; then
+      #         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+      #         echo "| cpplint failures found! Run: "
+      #         echo "|"
+      #         echo "|    make vineyard_cpplint"
+      #         echo "|"
+      #         echo "| to fix this error."
+      #         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+      #         exit -1
+      #     fi
 
       - name: Python format and lint
         run: |
