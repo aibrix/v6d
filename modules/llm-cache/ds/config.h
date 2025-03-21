@@ -98,7 +98,8 @@ struct AIBrixCacheConfig : public KVCacheConfig {
   AIBrixCacheConfig(int tensorByte = 10, int cacheCapacity = 10, int layer = 1,
                     int chunkSize = 4, std::string cacheNameSpace = "aibrix",
                     int localSyncInterval = 3 * 60, bool enbaleGlobalGC = true,
-                    int globalGCInterval = 10 * 60, int globalTTL = 8 * 60)
+                    int globalGCInterval = 10 * 60, int globalTTL = 30 * 60)
+                    // int globalGCInterval = 10 * 60, int globalTTL = 8 * 60)
       : KVCacheConfig{tensorByte, cacheCapacity, layer} {
     this->chunkSize = chunkSize;
     this->cacheNameSpace = cacheNameSpace;
