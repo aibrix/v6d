@@ -226,7 +226,7 @@ with open(
 
 setup(
     name='vineyard',
-    version="1.0.0-gangmuk",
+    version="1.0.0.gangmuk",
     author='The vineyard team',
     author_email='developers@v6d.io',
     description='An in-memory immutable data manager',
