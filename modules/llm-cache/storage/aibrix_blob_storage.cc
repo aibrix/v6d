@@ -925,6 +925,7 @@ Status AIBrixBlobStorage::GlobalGCFunc() {
       std::unique_lock<std::mutex> lock(main_fifo_mu_);
       for (const auto& name : delete_chunks) {
         main_fifo_.erase(name);
+        RETURN_ON_ERROR(DeleteName(name));
       }
     }
     VINEYARD_DISCARD(Delete(delete_list));
