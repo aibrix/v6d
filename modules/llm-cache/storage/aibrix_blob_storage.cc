@@ -925,7 +925,10 @@ Status AIBrixBlobStorage::GlobalGCFunc() {
       std::unique_lock<std::mutex> lock(main_fifo_mu_);
       for (const auto& name : delete_chunks) {
         main_fifo_.erase(name);
-        RETURN_ON_ERROR(DeleteName(name));
+        auto drop_status = DropName(name);
+        if (!drop_status.ok()) {
+          VLOG(100) << "Failed to drop name " << name << ": " << drop_status.ToString();
+        }
       }
     }
     VINEYARD_DISCARD(Delete(delete_list));
