@@ -541,7 +541,7 @@ Status AIBrixBlobStorage::QueryInternal(
   << ",tokens," << tokens.size() 
   << ",matched," << matched << ",hit_ratio," << hit_ratio
   << ",num_objects," << obj_names.size() 
-  << ",total_kv_tensors_size," << total_kv_tensors_size;    << ",num_objects," << obj_names.size() << ",total_kv_tensors_size," << total_kv_tensors_size;
+  << ",total_kv_tensors_size," << total_kv_tensors_size;
   return first_error;
 }
 
