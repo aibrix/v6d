@@ -412,6 +412,7 @@ Status AIBrixBlobStorage::QueryInternal(
     const std::vector<int>& prefix, const std::vector<int>& tokens,
     std::vector<std::vector<std::pair<LLMKV, LLMKV>>>& kv_tensors,
     size_t& matched) {
+  auto query_start_time = std::chrono::system_clock::now();
   matched = 0;
 
   if (exit_flag_) {
@@ -445,9 +446,11 @@ Status AIBrixBlobStorage::QueryInternal(
   auto access_time =
       std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
 
-  parallel::ThreadGroup tg(
-      std::min(obj_names.size(),
-               static_cast<size_t>(std::thread::hardware_concurrency())));
+  auto thread_count = std::min(obj_names.size(), static_cast<size_t>(std::thread::hardware_concurrency()));
+  parallel::ThreadGroup tg(thread_count);
+  VLOG(100) << "number of objects, " << obj_names.size();
+  VLOG(100) << "number of hardware thread, " << std::thread::hardware_concurrency();
+  VLOG(100) << "thread_count, " << thread_count;
   std::vector<parallel::ThreadGroup::tid_t> tids;
 
   bool is_zero_copy = kv_tensors[0][0].first.data == nullptr;
@@ -467,7 +470,6 @@ Status AIBrixBlobStorage::QueryInternal(
   };
 
   DEFINE_TASK_FN(fn, Query, cb);
-
   for (size_t i = 0; i < obj_names.size(); i++) {
     const auto& obj_name = obj_names[i];
 
@@ -485,6 +487,7 @@ Status AIBrixBlobStorage::QueryInternal(
     }
 
     if (query_builder == nullptr) {
+    //   auto hit_time = std::chrono::system_clock::now();
       std::unique_lock<std::mutex> lock(main_fifo_mu_);
       auto it = main_fifo_.findWithoutPromotion(obj_name);
       if (it != main_fifo_.end()) {
@@ -492,7 +495,7 @@ Status AIBrixBlobStorage::QueryInternal(
         if (it->second.chunk_builder == nullptr) {
           VLOG(100) << "Loading " << obj_name;
           VINEYARD_ASSERT(it->second.object_id != InvalidObjectID());
-
+          auto load_start = std::chrono::system_clock::now();
           auto status = KVCacheChunkBuilder::Make(
               it->second.chunk_builder, rpc_client_, tensor_nbytes_, layer_,
               chunk_size_, kv_cache_ns_, it->second.object_id);
@@ -501,8 +504,10 @@ Status AIBrixBlobStorage::QueryInternal(
             // skip this and rest chunks
             break;
           } else {
+            auto load_end = std::chrono::system_clock::now();
+            auto load_time_in_ms = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start).count();
             VLOG(100) << "obj name=" << obj_name
-                      << ", obj id=" << ObjectIDToString(it->second.object_id);
+                      << ", obj id=" << ObjectIDToString(it->second.object_id) << ", load latency " << load_time_in_ms << " ms";
           }
         }
         it->second.access_bit = true;
@@ -526,6 +531,10 @@ Status AIBrixBlobStorage::QueryInternal(
 
   Status first_error = Status::OK();
   WAIT_TASK_RESULTS(tids, matched, first_error, obj_names);
+  auto query_end_time = std::chrono::system_clock::now();
+  auto total_time_in_ms = std::chrono::duration_cast<std::chrono::milliseconds>(query_end_time - query_start_time).count();
+  VLOG(100) << "Query total latency " << total_time_in_ms << " ms";
+  VLOG(100) << "Cache Hit Ratio: " << (matched / static_cast<float>(tokens.size())) * 100.0f << "%";
   return first_error;
 }
 
