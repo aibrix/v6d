@@ -495,7 +495,6 @@ Status AIBrixBlobStorage::QueryInternal(
         if (it->second.chunk_builder == nullptr) {
           VLOG(100) << "Loading " << obj_name;
           VINEYARD_ASSERT(it->second.object_id != InvalidObjectID());
-          auto load_start = std::chrono::system_clock::now();
           auto status = KVCacheChunkBuilder::Make(
               it->second.chunk_builder, rpc_client_, tensor_nbytes_, layer_,
               chunk_size_, kv_cache_ns_, it->second.object_id);
@@ -504,10 +503,8 @@ Status AIBrixBlobStorage::QueryInternal(
             // skip this and rest chunks
             break;
           } else {
-            auto load_end = std::chrono::system_clock::now();
-            auto load_time_in_ms = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start).count();
             VLOG(100) << "obj name=" << obj_name
-                      << ", obj id=" << ObjectIDToString(it->second.object_id) << ", load latency " << load_time_in_ms << " ms";
+                      << ", obj id=" << ObjectIDToString(it->second.object_id);
           }
         }
         it->second.access_bit = true;
@@ -532,9 +529,12 @@ Status AIBrixBlobStorage::QueryInternal(
   Status first_error = Status::OK();
   WAIT_TASK_RESULTS(tids, matched, first_error, obj_names);
   auto query_end_time = std::chrono::system_clock::now();
+  auto hit_ratio = matched / static_cast<float>(tokens.size());
   auto total_time_in_ms = std::chrono::duration_cast<std::chrono::milliseconds>(query_end_time - query_start_time).count();
-  VLOG(100) << "Query total latency " << total_time_in_ms << " ms";
-  VLOG(100) << "Cache Hit Ratio: " << (matched / static_cast<float>(tokens.size())) * 100.0f << "%";
+  size_t total_kv_tensors_size = tokens.size() * tensor_nbytes_ * 2 * layer_;
+  VLOG(100) << "QueryInternalPerf,Query_start_time," << query_end_time << ",Query_end_time," << query_end_time << "," << total_time_in_ms << ",threads," << thread_count 
+    << ",tokens," << tokens.size() << ",matched," << matched << ",hit_ratio," << hit_ratio
+    << ",num_objects," << obj_names.size() << ",total_kv_tensors_size," << kv_tensors.size();
   return first_error;
 }
 
