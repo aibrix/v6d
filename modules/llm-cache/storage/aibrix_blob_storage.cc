@@ -532,9 +532,8 @@ Status AIBrixBlobStorage::QueryInternal(
   auto hit_ratio = matched / static_cast<float>(tokens.size());
   auto total_time_in_ms = std::chrono::duration_cast<std::chrono::milliseconds>(query_end_time - query_start_time).count();
   size_t total_kv_tensors_size = tokens.size() * tensor_nbytes_ * 2 * layer_;
-  VLOG(100) << "QueryInternalPerf,Query_start_time," << query_end_time << ",Query_end_time," << query_end_time << "," << total_time_in_ms << ",threads," << thread_count 
-    << ",tokens," << tokens.size() << ",matched," << matched << ",hit_ratio," << hit_ratio
-    << ",num_objects," << obj_names.size() << ",total_kv_tensors_size," << kv_tensors.size();
+  VLOG(100) << "QueryInternalPerf,Query_start_time," << query_start_time << ",Query_end_time," << query_end_time << ",Query_total_time_in_ms," << total_time_in_ms << ",threads," << thread_count << ",tokens," << tokens.size() << ",matched," << matched  ",hit_ratio," << hit_ratio
+    << ",num_objects," << obj_names.size() << ",total_kv_tensors_size," << total_kv_tensors_size;
   return first_error;
 }
 
