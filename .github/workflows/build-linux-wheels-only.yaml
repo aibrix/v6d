@@ -1,0 +1,83 @@
+# Copyright 2020-2023 Alibaba Group Holding Limited.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build Wheels Only
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.event.number || github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  packages: write
+
+jobs:
+  build-wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04]
+        platform: [x86_64, aarch64]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Generate Summary for Submodules
+        run: |
+          git submodule > git-modules.txt
+          cat git-modules.txt
+
+      - name: Log in to GitHub Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up qemu
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache for cccahe
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ matrix.os }}-ccache-${{ hashFiles('**/git-modules.txt') }}
+          restore-keys: |
+            ${{ matrix.os }}-ccache-
+
+      - name: Build wheel package on Linux
+        env:
+          WHEEL_VERSION: "${{ github.sha }}"
+        run: |
+          mkdir -p fixed_wheels
+          for py in cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do
+            make -C docker/ python-wheel WHEEL_PYTHON=$py WHEEL_VERSION=$WHEEL_VERSION PLATFORM=${{ matrix.platform }}
+            docker run --rm \
+              -v `pwd`/fixed_wheels:/target \
+              ghcr.io/aibrix/v6d/vineyard-wheel:${WHEEL_VERSION}_${py}_${{ matrix.platform }} \
+              sh -c "cp -r /work/fixed_wheels/* /target/"
+          done
+          ls -la ./fixed_wheels/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vineyard-linux-${{ matrix.platform }}-wheels
+          path: fixed_wheels/*.whl
